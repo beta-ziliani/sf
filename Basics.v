@@ -723,18 +723,18 @@ Proof.
 (** We can also use the [rewrite] tactic with a previously proved
     theorem instead of a hypothesis from the context. *)
 
-Theorem add0n_multm : forall n m : nat,
+Theorem mult_add0n : forall n m : nat,
   (0 + n) * m = n * m.
 Proof.
   move=> n m.
-  rewrite plus_O_n.
+  rewrite add0n.
   by [].  
 Qed.
 
 (** Of course, in the example above we can also use computation: no
     rewriting is necessary. *)
 
-Theorem add0n_multm' : forall n m : nat, (0 + n) * m = n * m.  
+Theorem mult_add0n' : forall n m : nat, (0 + n) * m = n * m.  
 Proof.  move=> n m.  by [].  Abort.
 
 
