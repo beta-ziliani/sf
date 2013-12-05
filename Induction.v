@@ -179,7 +179,7 @@ Qed.
 (** Prove the following lemmas using induction. You might need
     previously proven results. *)
 
-Theorem multn0 : forall n:nat,
+Theorem muln0 : forall n:nat,
   n * 0 = 0.
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -242,11 +242,11 @@ Proof.
     cases, it is convenient to be able to simply state and prove the
     needed "sub-theorem" right at the point where it is used.  The
     [have] tactic allows us to do this.  For example, our earlier
-    proof of the [mult_add0n] theorem referred to a previous theorem
+    proof of the [muln_add0n] theorem referred to a previous theorem
     named [add0n].  We can also use [have] to state and prove [add0n]
     in-line: *)
 
-Theorem mult_add0n' : forall n m : nat,
+Theorem muln_add0n' : forall n m : nat,
   (0 + n) * m = n * m.
 Proof.
   move=> n m.
@@ -291,7 +291,7 @@ Abort.
     this lemma using [addnC], and then use this lemma to do the
     desired rewrite. *)
 
-Theorem plus_rearrange : forall n m p q : nat,
+Theorem addn_rearrange : forall n m p q : nat,
   (n + m) + (p + q) = (m + n) + (p + q).
 Proof.
   move=> n m p q.
@@ -305,7 +305,7 @@ Qed.
     tactic, where we can specify precisely which part of the term to
     rewrite.  This is specified between brackets: *)
 
-Theorem plus_rearrange' : forall n m p q : nat,
+Theorem addn_rearrange' : forall n m p q : nat,
   (n + m) + (p + q) = (m + n) + (p + q).
 Proof.
   move=> n m p q.
@@ -316,7 +316,7 @@ Qed.
 (** Even more, we can use a _pattern_, containing an open term. Notice
     the underscore [_] in the pattern. *)
 
-Theorem plus_rearrange'' : forall n m p q : nat,
+Theorem addn_rearrange'' : forall n m p q : nat,
   (n + m) + (p + q) = (m + n) + (p + q).
 Proof.
   move=> n m p q.
@@ -324,7 +324,7 @@ Proof.
   by [].
 Qed.
 
-(** **** Exercise: 4 stars (multC) *)
+(** **** Exercise: 4 stars (mulnC) *)
 (** Use [have] to help prove this theorem.  You shouldn't need to
     use induction. *)
 Theorem addnCA : forall n m p : nat, 
@@ -343,7 +343,7 @@ Proof.
     in the proof of this one.)  You may find that [addnCA] comes in
     handy. *)
 
-Theorem multC : forall m n : nat,
+Theorem mulnC : forall m n : nat,
  m * n = n * m.
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -371,32 +371,32 @@ Proof.
     to turn in your piece of paper; this is just to encourage you to
     reflect before hacking!) *)
 
-Theorem ble_nat_refl : forall n:nat,
-  true = ble_nat n n.
+Theorem leqnn : forall n:nat,
+  leq n n = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem zero_nbeq_S : forall n:nat,
-  beq_nat 0 (S n) = false.
+Theorem zero_eqn_S : forall n:nat,
+  eqn 0 (S n) = false.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem andb_false_r : forall b : bool,
+Theorem andb_false : forall b : bool,
   andb b false = false.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem plus_ble_compat_l : forall n m p : nat, 
-  ble_nat n m = true -> ble_nat (p + n) (p + m) = true.
+Theorem addn_leq_compat_l : forall n m p : nat, 
+  leq n m = true -> leq (p + n) (p + m) = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem S_nbeq_0 : forall n:nat,
-  beq_nat (S n) 0 = false.
+Theorem S_eqn_0 : forall n:nat,
+  eqn (S n) 0 = false.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem mult_1_l : forall n:nat, 1 * n = n.
+Theorem mul1n : forall n:nat, 1 * n = n.
 Proof.
   (* FILL IN HERE *) Admitted.
 
@@ -409,44 +409,26 @@ Theorem all3_spec : forall b c : bool,
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem mult_plus_distr_r : forall n m p : nat,
+Theorem addnl : forall n m p, m = p -> n + m = n + p.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem muln_addn_distr_r : forall n m p : nat,
   (n + m) * p = (n * p) + (m * p).
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem mult_assoc : forall n m p : nat,
+Theorem muln_assoc : forall n m p : nat,
   n * (m * p) = (n * m) * p.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 2 stars, optional (beq_nat_refl) *)
-(** Prove the following theorem.  Putting [true] on the left-hand side
-of the equality may seem odd, but this is how the theorem is stated in
-the standard library, so we follow suit.  Since rewriting 
-works equally well in either direction, we will have no 
-problem using the theorem no matter which way we state it. *)
+(** **** Exercise: 2 stars, optional (eqnn) *)
+(** Prove the following theorem. *)
 
-Theorem beq_nat_refl : forall n : nat, 
-  true = beq_nat n n.
-Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
-(** **** Exercise: 2 stars, optional (plus_swap') *)
-(** The [replace] tactic allows you to specify a particular subterm to
-   rewrite and what you want it rewritten to.  More precisely,
-   [replace (t) with (u)] replaces (all copies of) expression [t] in
-   the goal by expression [u], and generates [t = u] as an additional
-   subgoal. This is often useful when a plain [rewrite] acts on the wrong
-   part of the goal.  
-
-   Use the [replace] tactic to do a proof of [plus_swap'], just like
-   [plus_swap] but without needing [assert (n + m = m + n)]. 
-*)
-
-Theorem plus_swap' : forall n m p : nat, 
-  n + (m + p) = m + (n + p).
+Theorem eqnn : forall n : nat, 
+  eqn n n = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
@@ -548,20 +530,19 @@ Proof.
 
 (** For example, here is a proof that addition is associative: *)
 
-Theorem plus_assoc' : forall n m p : nat,
+Theorem addnA' : forall n m p : nat,
   n + (m + p) = (n + m) + p.
-Proof. intros n m p. induction n as [| n']. reflexivity. 
-  simpl. rewrite -> IHn'. reflexivity.  Qed.
+Proof. move=> n m p. by elim: n => [| _ /= -> //].  Qed.
 
 (** Coq is perfectly happy with this as a proof.  For a human,
     however, it is difficult to make much sense of it.  If you're used
-    to Coq you can probably step through the tactics one after the
-    other in your mind and imagine the state of the context and goal
-    stack at each point, but if the proof were even a little bit more
-    complicated this would be next to impossible.  Instead, a
-    mathematician might write it something like this: *)
-(** - _Theorem_: For any [n], [m] and [p],
-      n + (m + p) = (n + m) + p.
+    to Coq and Ssreflect you can probably step through the tactics one
+    after the other in your mind and imagine the state of the context
+    and goal stack at each point, but if the proof were even a little
+    bit more complicated this would be next to impossible.  Instead, a
+    mathematician might write it something like this: *) 
+(** -
+    _Theorem_: For any [n], [m] and [p], n + (m + p) = (n + m) + p.
     _Proof_: By induction on [n].
 
     - First, suppose [n = 0].  We must show 
@@ -577,11 +558,11 @@ Proof. intros n m p. induction n as [| n']. reflexivity.
       which is immediate from the induction hypothesis. [] *)
 
 (** The overall form of the proof is basically similar.  This is
-    no accident: Coq has been designed so that its [induction] tactic
+    no accident: Coq has been designed so that its [elim] tactic
     generates the same sub-goals, in the same order, as the bullet
     points that a mathematician would write.  But there are
     significant differences of detail: the formal proof is much more
-    explicit in some ways (e.g., the use of [reflexivity]) but much
+    explicit in some ways (e.g., the use of [/=] or [//]) but much
     less explicit in others (in particular, the "proof state" at any
     given point in the Coq proof is completely implicit, whereas the
     informal proof reminds the reader several times where things
@@ -590,17 +571,38 @@ Proof. intros n m p. induction n as [| n']. reflexivity.
 (** Here is a formal proof that shows the structure more
     clearly: *)
 
-Theorem plus_assoc'' : forall n m p : nat,
+Theorem addnA'' : forall n m p : nat,
   n + (m + p) = (n + m) + p.
 Proof.
-  intros n m p. induction n as [| n']. 
-  Case "n = 0".
-    reflexivity. 
-  Case "n = S n'".
-    simpl. rewrite -> IHn'. reflexivity.   Qed.
+  move=> n m p. elim: n => [| n' IH]. 
+  - by []. (* Base case *) 
+  rewrite /=. rewrite IH. by [].
+Qed.
 
-(** **** Exercise: 2 stars, advanced (plus_comm_informal) *)
-(** Translate your solution for [plus_comm] into an informal proof. *)
+(** Ultimately, what one needs to think when writing a proof is "what
+    do I need to communicate about my proof?", and act
+    accordingly. Some one-liner proofs like the one above are
+    perfectly understandable at the high level: it's performing
+    induction on [n]. Do we care about the details in this case?
+    Probably not. And this is the philosophy behind Ssreflect: the
+    details should be hiden as much as possible, and they should not
+    stand on our way. It is only the structure of the proof that
+    matters.
+
+    To give an idea, the theorem [addnA'] in plain Coq is way more
+    verbose, even if we try to be as concise as possible:
+*)
+
+Theorem addnA'_in_plain_coq : forall n m p : nat,
+   n + (m + p) = (n + m) + p.
+Proof.
+  intros n m p. induction n as [| n']. reflexivity. 
+  simpl. rewrite -> IHn'. reflexivity.  
+Qed.
+
+
+(** **** Exercise: 2 stars, advanced (addnC_informal) *)
+(** Translate your solution for [addnC] into an informal proof. *)
 
 (** Theorem: Addition is commutative.
  
@@ -608,12 +610,12 @@ Proof.
 []
 *)
 
-(** **** Exercise: 2 stars, optional (beq_nat_refl_informal) *)
+(** **** Exercise: 2 stars, optional (eqnn_informal) *)
 (** Write an informal proof of the following theorem, using the
-    informal proof of [plus_assoc] as a model.  Don't just
+    informal proof of [addnA] as a model.  Don't just
     paraphrase the Coq tactics into English!
  
-    Theorem: [true = beq_nat n n] for any [n].
+    Theorem: [eqnn n n] for any [n].
     
     Proof: (* FILL IN HERE *)
 []
