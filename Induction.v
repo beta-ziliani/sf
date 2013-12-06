@@ -158,7 +158,7 @@ Qed.
     induction hypothesis.  This is solved in Ssreflect with the one
     line [by move=> /= ->].  We saw the _item_ [/=] before, it means
     "simplify", and we use it with the [rewrite] tactic, but it can
-    actually be used in many context as we see here.  So [move=> /=]
+    actually be used in many contexts, as we see here.  So [move=> /=]
     does exactly the same as [rewrite /=], although we can next use
     the [->] _pattern_ to perform a rewrite of the first hypothesis in
     the goal.  Putting the pieces together, [move=> /= ->] first
