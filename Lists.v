@@ -1,5 +1,5 @@
 (** * Lists: Working with Structured Data *)
-
+Require Import ssreflect.
 Require Export Induction.
 
 Module NatList. 
@@ -53,15 +53,6 @@ Notation "( x , y )" := (pair x y).
 
 Eval compute in (fst (3,5)).
 
-Definition fst' (p : natprod) : nat := 
-  match p with
-  | (x,y) => x
-  end.
-Definition snd' (p : natprod) : nat := 
-  match p with
-  | (x,y) => y
-  end.
-
 Definition swap_pair (p : natprod) : natprod := 
   match p with
   | (x,y) => (y,x)
@@ -74,30 +65,38 @@ Definition swap_pair (p : natprod) : natprod :=
 
 Theorem surjective_pairing' : forall (n m : nat),
   (n,m) = (fst (n,m), snd (n,m)).
-Proof.
-  reflexivity.  Qed.
+Proof. by [].  Qed.
 
-(** Note that [reflexivity] is not enough if we state the lemma in a
+(** Note that [by []] is not enough if we state the lemma in a
     more natural way: *)
 
 Theorem surjective_pairing_stuck : forall (p : natprod),
   p = (fst p, snd p).
 Proof.
-  simpl. (* Doesn't reduce anything! *)
+  move=> p.
+  rewrite /=. (* Doesn't reduce anything! *)
 Abort.
 
-(** We have to expose the structure of [p] so that [simpl] can
+(** We have to expose the structure of [p] so that [rewrite /=] can
     perform the pattern match in [fst] and [snd].  We can do this with
-    [destruct].
+    [case].
 
-    Notice that, unlike for [nat]s, [destruct] doesn't generate an
+    Notice that, unlike for [nat]s, [case] doesn't generate an
     extra subgoal here.  That's because [natprod]s can only be
     constructed in one way.  *)
 
 Theorem surjective_pairing : forall (p : natprod),
   p = (fst p, snd p).
 Proof.
-  intros p.  destruct p as [n m].  simpl.  reflexivity.  Qed.
+  case=>[n m].
+  rewrite /=.
+  by [].
+Qed.
+
+(** Alternatively we can write the shorter proof. *)
+Theorem surjective_pairing_short : forall (p : natprod),
+  p = (fst p, snd p).
+Proof. by case. Qed.
 
 (** **** Exercise: 1 star (snd_fst_is_swap) *)
 Theorem snd_fst_is_swap : forall (p : natprod),
@@ -109,7 +108,7 @@ Proof.
 (** **** Exercise: 1 star, optional (fst_swap_is_snd) *)
 Theorem fst_swap_is_snd : forall (p : natprod),
   fst (swap_pair p) = snd p.
-Proof.
+Proof. 
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -129,14 +128,14 @@ Inductive natlist : Type :=
 
 Definition mylist := cons 1 (cons 2 (cons 3 nil)).
 
-(** As with pairs, it is more convenient to write lists in
-    familiar programming notation.  The following two declarations
-    allow us to use [::] as an infix [cons] operator and square
-    brackets as an "outfix" notation for constructing lists. *)
+(** As with pairs, it is more convenient to write lists in familiar
+    programming notation.  Since Coq and Ssreflect differ in the
+    notation, we follow the perhaps less familiar notation of
+    Ssreflect.. *)
 
 Notation "x :: l" := (cons x l) (at level 60, right associativity).
-Notation "[ ]" := nil.
-Notation "[ x ; .. ; y ]" := (cons x .. (cons y nil) ..).
+Notation "[ :: ]" := nil (at level 0).
+Notation "[ :: x ; .. ; y ]" := (cons x .. (cons y nil) ..) (at level 0).
 
 (** It is not necessary to fully understand these declarations,
     but in case you are interested, here is roughly what's going on.
@@ -145,9 +144,9 @@ Notation "[ x ; .. ; y ]" := (cons x .. (cons y nil) ..).
     expressions involving several uses of [::] so that, for example,
     the next three declarations mean exactly the same thing: *)
 
-Definition mylist1 := 1 :: (2 :: (3 :: nil)).
-Definition mylist2 := 1 :: 2 :: 3 :: nil.
-Definition mylist3 := [1;2;3].
+Definition mylist1 := (1 :: (2 :: (3 :: [::]))).
+Definition mylist2 := 1 :: 2 :: 3 :: [::].
+Definition mylist3 := [:: 1;2;3].
 
 (** The [at level 60] part tells Coq how to parenthesize
     expressions that involve both [::] and some other infix operator.
@@ -155,12 +154,12 @@ Definition mylist3 := [1;2;3].
     function at level 50,
 Notation "x + y" := (plus x y)  
                     (at level 50, left associativity).
-   The [+] operator will bind tighter than [::], so [1 + 2 :: [3]]
-   will be parsed, as we'd expect, as [(1 + 2) :: [3]] rather than [1
-   + (2 :: [3])].
+   The [+] operator will bind tighter than [::], so [1 + 2 :: [:: 3]]
+   will be parsed, as we'd expect, as [(1 + 2) :: [:: 3]] rather than [1
+   + (2 :: [:: 3])].
 
    (By the way, it's worth noting in passing that expressions like "[1
-   + 2 :: [3]]" can be a little confusing when you read them in a .v
+   + 2 :: [:: 3]]" can be a little confusing when you read them in a .v
    file.  The inner brackets, around 3, indicate a list, but the outer
    brackets, which are invisible in the HTML rendering, are there to
    instruct the "coqdoc" tool that the bracketed part should be
@@ -173,70 +172,70 @@ Notation "x + y" := (plus x y)
    constructors. *)
 
 (** A number of functions are useful for manipulating lists.
-    For example, the [repeat] function takes a number [n] and a
-    [count] and returns a list of length [count] where every element
+    For example, the [ncons] function takes numbers [count] and
+    [n] and returns a list of length [count] where every element
     is [n]. *)
 
-Fixpoint repeat (n count : nat) : natlist := 
+Fixpoint ncons (count n : nat) : natlist := 
   match count with
-  | O => nil
-  | S count' => n :: (repeat n count')
+  | O => [::]
+  | S count' =>  n :: ncons count' n
   end.
 
-(** The [length] function calculates the length of a list. *)
+(** The [size] function calculates the length of a list. *)
 
-Fixpoint length (l:natlist) : nat := 
+Fixpoint size (l:natlist) : nat := 
   match l with
-  | nil => O
-  | h :: t => S (length t)
+  | [::] => O
+  | h :: t => S (size t)
   end.
 
-(** The [app] ("append") function concatenates two lists. *)
+(** The [cat] ("concat") function concatenates two lists. *)
 
-Fixpoint app (l1 l2 : natlist) : natlist := 
+Fixpoint cat (l1 l2 : natlist) : natlist := 
   match l1 with
-  | nil    => l2
-  | h :: t => h :: (app t l2)
+  | [::]    => l2
+  | h :: t => h :: cat t l2
   end.
 
 (** Actually, [app] will be used a lot in some parts of what
     follows, so it is convenient to have an infix operator for it. *)
 
-Notation "x ++ y" := (app x y) 
+Notation "x ++ y" := (cat x y) 
                      (right associativity, at level 60).
 
-Example test_app1:             [1;2;3] ++ [4;5] = [1;2;3;4;5].
-Proof. reflexivity.  Qed.
-Example test_app2:             nil ++ [4;5] = [4;5].
-Proof. reflexivity.  Qed.
-Example test_app3:             [1;2;3] ++ nil = [1;2;3].
-Proof. reflexivity.  Qed.
+Example test_app1:             [:: 1;2;3] ++ [:: 4;5] = [:: 1;2;3;4;5].
+Proof. by [].  Qed.
+Example test_app2:             [::] ++ [:: 4;5] = [:: 4;5].
+Proof. by [].  Qed.
+Example test_app3:             [:: 1;2;3] ++ [::] = [:: 1;2;3].
+Proof. by [].  Qed.
 
 (** Here are two smaller examples of programming with lists.
-    The [hd] function returns the first element (the "head") of the
-    list, while [tl] returns everything but the first
+    The [head] function returns the first element (the "head") of the
+    list, while [taill] returns everything but the first
     element (the "tail").  
     Of course, the empty list has no first element, so we
     must pass a default value to be returned in that case.  *)
 
-Definition hd (default:nat) (l:natlist) : nat :=
+Definition head (default:nat) (l:natlist) : nat :=
   match l with
-  | nil => default
+  | [::] => default
   | h :: t => h
   end.
 
-Definition tl (l:natlist) : natlist :=
+Definition tail (l:natlist) : natlist :=
   match l with
-  | nil => nil  
+  | [::] => [::]  
   | h :: t => t
   end.
 
-Example test_hd1:             hd 0 [1;2;3] = 1.
-Proof. reflexivity.  Qed.
-Example test_hd2:             hd 0 [] = 0.
-Proof. reflexivity.  Qed.
-Example test_tl:              tl [1;2;3] = [2;3].
-Proof. reflexivity.  Qed.
+Example test_hd1:             head 0 [:: 1;2;3] = 1.
+Proof. by [].  Qed.
+Example test_hd2:             head 0 [::] = 0.
+Proof. by [].  Qed.
+Example test_tl:              tail [:: 1;2;3] = [:: 2;3].
+Proof. by [].  Qed.
 
 (** **** Exercise: 2 stars (list_funs) *)
 (** Complete the definitions of [nonzeros], [oddmembers] and
@@ -246,23 +245,23 @@ Proof. reflexivity.  Qed.
 Fixpoint nonzeros (l:natlist) : natlist :=
   (* FILL IN HERE *) admit.
 
-Example test_nonzeros:            nonzeros [0;1;0;2;3;0;0] = [1;2;3].
+Example test_nonzeros:            nonzeros [:: 0;1;0;2;3;0;0] = [:: 1;2;3].
  (* FILL IN HERE *) Admitted.
 
 Fixpoint oddmembers (l:natlist) : natlist :=
   (* FILL IN HERE *) admit.
 
-Example test_oddmembers:            oddmembers [0;1;0;2;3;0;0] = [1;3].
+Example test_oddmembers:            oddmembers [:: 0;1;0;2;3;0;0] = [:: 1;3].
  (* FILL IN HERE *) Admitted.
 
 Fixpoint countoddmembers (l:natlist) : nat :=
   (* FILL IN HERE *) admit.
 
-Example test_countoddmembers1:    countoddmembers [1;0;3;1;4;5] = 4.
+Example test_countoddmembers1:    countoddmembers [:: 1;0;3;1;4;5] = 4.
  (* FILL IN HERE *) Admitted.
-Example test_countoddmembers2:    countoddmembers [0;2;4] = 0.
+Example test_countoddmembers2:    countoddmembers [:: 0;2;4] = 0.
  (* FILL IN HERE *) Admitted.
-Example test_countoddmembers3:    countoddmembers nil = 0.
+Example test_countoddmembers3:    countoddmembers [::] = 0.
  (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -284,13 +283,13 @@ Fixpoint alternate (l1 l2 : natlist) : natlist :=
   (* FILL IN HERE *) admit.
 
 
-Example test_alternate1:        alternate [1;2;3] [4;5;6] = [1;4;2;5;3;6].
+Example test_alternate1:        alternate [:: 1;2;3] [:: 4;5;6] = [:: 1;4;2;5;3;6].
  (* FILL IN HERE *) Admitted.
-Example test_alternate2:        alternate [1] [4;5;6] = [1;4;5;6].
+Example test_alternate2:        alternate [:: 1] [:: 4;5;6] = [:: 1;4;5;6].
  (* FILL IN HERE *) Admitted.
-Example test_alternate3:        alternate [1;2;3] [4] = [1;4;2;3].
+Example test_alternate3:        alternate [:: 1;2;3] [:: 4] = [:: 1;4;2;3].
  (* FILL IN HERE *) Admitted.
-Example test_alternate4:        alternate [] [20;30] = [20;30].
+Example test_alternate4:        alternate [::] [:: 20;30] = [:: 20;30].
  (* FILL IN HERE *) Admitted. 
 (** [] *)
 
@@ -311,11 +310,11 @@ Definition bag := natlist.
 Fixpoint count (v:nat) (s:bag) : nat := 
   (* FILL IN HERE *) admit.
 
-(** All these proofs can be done just by [reflexivity]. *)
+(** All these proofs can be done just by [by []]. *)
 
-Example test_count1:              count 1 [1;2;3;1;4;1] = 3.
+Example test_count1:              count 1 [:: 1;2;3;1;4;1] = 3.
  (* FILL IN HERE *) Admitted.
-Example test_count2:              count 6 [1;2;3;1;4;1] = 0.
+Example test_count2:              count 6 [:: 1;2;3;1;4;1] = 0.
  (* FILL IN HERE *) Admitted.
 
 (** Multiset [sum] is similar to set [union]: [sum a b] contains
@@ -333,23 +332,23 @@ Example test_count2:              count 6 [1;2;3;1;4;1] = 0.
 Definition sum : bag -> bag -> bag := 
   (* FILL IN HERE *) admit.
 
-Example test_sum1:              count 1 (sum [1;2;3] [1;4;1]) = 3.
+Example test_sum1:              count 1 (sum [:: 1;2;3] [:: 1;4;1]) = 3.
  (* FILL IN HERE *) Admitted.
 
 Definition add (v:nat) (s:bag) : bag := 
   (* FILL IN HERE *) admit.
 
-Example test_add1:                count 1 (add 1 [1;4;1]) = 3.
+Example test_add1:                count 1 (add 1 [::1;4;1]) = 3.
  (* FILL IN HERE *) Admitted.
-Example test_add2:                count 5 (add 1 [1;4;1]) = 0.
+Example test_add2:                count 5 (add 1 [:: 1;4;1]) = 0.
  (* FILL IN HERE *) Admitted.
 
 Definition member (v:nat) (s:bag) : bool := 
   (* FILL IN HERE *) admit.
 
-Example test_member1:             member 1 [1;4;1] = true.
+Example test_member1:             member 1 [:: 1;4;1] = true.
  (* FILL IN HERE *) Admitted.
-Example test_member2:             member 2 [1;4;1] = false.
+Example test_member2:             member 2 [:: 1;4;1] = false.
  (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -361,33 +360,33 @@ Fixpoint remove_one (v:nat) (s:bag) : bag :=
      it should return the same bag unchanged. *)
   (* FILL IN HERE *) admit.
 
-Example test_remove_one1:         count 5 (remove_one 5 [2;1;5;4;1]) = 0.
+Example test_remove_one1:         count 5 (remove_one 5 [:: 2;1;5;4;1]) = 0.
  (* FILL IN HERE *) Admitted.
-Example test_remove_one2:         count 5 (remove_one 5 [2;1;4;1]) = 0.
+Example test_remove_one2:         count 5 (remove_one 5 [:: 2;1;4;1]) = 0.
  (* FILL IN HERE *) Admitted.
-Example test_remove_one3:         count 4 (remove_one 5 [2;1;4;5;1;4]) = 2.
+Example test_remove_one3:         count 4 (remove_one 5 [:: 2;1;4;5;1;4]) = 2.
  (* FILL IN HERE *) Admitted.
-Example test_remove_one4:         count 5 (remove_one 5 [2;1;5;4;5;1;4]) = 1.
+Example test_remove_one4:         count 5 (remove_one 5 [:: 2;1;5;4;5;1;4]) = 1.
  (* FILL IN HERE *) Admitted.
 
 Fixpoint remove_all (v:nat) (s:bag) : bag :=
   (* FILL IN HERE *) admit.
 
-Example test_remove_all1:          count 5 (remove_all 5 [2;1;5;4;1]) = 0.
+Example test_remove_all1:          count 5 (remove_all 5 [:: 2;1;5;4;1]) = 0.
  (* FILL IN HERE *) Admitted.
-Example test_remove_all2:          count 5 (remove_all 5 [2;1;4;1]) = 0.
+Example test_remove_all2:          count 5 (remove_all 5 [:: 2;1;4;1]) = 0.
  (* FILL IN HERE *) Admitted.
-Example test_remove_all3:          count 4 (remove_all 5 [2;1;4;5;1;4]) = 2.
+Example test_remove_all3:          count 4 (remove_all 5 [:: 2;1;4;5;1;4]) = 2.
  (* FILL IN HERE *) Admitted.
-Example test_remove_all4:          count 5 (remove_all 5 [2;1;5;4;5;1;4;5;1;4]) = 0.
+Example test_remove_all4:          count 5 (remove_all 5 [:: 2;1;5;4;5;1;4;5;1;4]) = 0.
  (* FILL IN HERE *) Admitted.
 
 Fixpoint subset (s1:bag) (s2:bag) : bool :=
   (* FILL IN HERE *) admit.
 
-Example test_subset1:              subset [1;2] [2;1;4;1] = true.
+Example test_subset1:              subset [:: 1;2] [:: 2;1;4;1] = true.
  (* FILL IN HERE *) Admitted.
-Example test_subset2:              subset [1;2;2] [2;1;4;1] = false.
+Example test_subset2:              subset [:: 1;2;2] [:: 2;1;4;1] = false.
  (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -407,14 +406,14 @@ Example test_subset2:              subset [1;2;2] [2;1;4;1] = false.
 
 (** Just as with numbers, simple facts about list-processing
     functions can sometimes be proved entirely by simplification. For
-    example, the simplification performed by [reflexivity] is enough
+    example, the simplification performed by [by []] is enough
     for this theorem... *)
 
 Theorem nil_app : forall l:natlist,
-  [] ++ l = l.
-Proof. reflexivity. Qed.
+  [::] ++ l = l.
+Proof. by []. Qed.
 
-(** ... because the [[]] is substituted into the match position
+(** ... because the [[::]] is substituted into the match position
     in the definition of [app], allowing the match itself to be
     simplified. *)
 
@@ -422,17 +421,16 @@ Proof. reflexivity. Qed.
     analysis on the possible shapes (empty or non-empty) of an unknown
     list. *)
 
-Theorem tl_length_pred : forall l:natlist,
-  pred (length l) = length (tl l).
+Theorem tail_size_pred : forall l:natlist,
+  pred (size l) = size (tail l).
 Proof.
-  intros l. destruct l as [| n l'].
-  Case "l = nil".
-    reflexivity.
-  Case "l = cons n l'". 
-    reflexivity.  Qed.
+  case=> [| n l'].
+  - by [].
+  by [].  
+Qed.
 
 (** Here, the [nil] case works because we've chosen to define
-    [tl nil = nil]. Notice that the [as] annotation on the [destruct]
+    [tail nil = nil]. Notice that the [=>] tactical on the [case]
     tactic here introduces two names, [n] and [l'], corresponding to
     the fact that the [cons] constructor for lists takes two
     arguments (the head and tail of the list it is constructing). *)
@@ -480,14 +478,15 @@ Proof.
     eventually reaching [nil], these two things together establish the
     truth of [P] for all lists [l].  Here's a concrete example: *)
 
-Theorem app_ass : forall l1 l2 l3 : natlist, 
+Theorem catA : forall l1 l2 l3 : natlist, 
   (l1 ++ l2) ++ l3 = l1 ++ (l2 ++ l3).   
 Proof.
-  intros l1 l2 l3. induction l1 as [| n l1'].
-  Case "l1 = nil".
-    reflexivity.
-  Case "l1 = cons n l1'".
-    simpl. rewrite -> IHl1'. reflexivity.  Qed.
+  move=> l1 l2 l3. elim: l1 => [| n l1'].
+  - by [].
+  rewrite /=. 
+  move=> ->. 
+  by [].  
+Qed.
 
 (** Again, this Coq proof is not especially illuminating as a
     static written document -- it is easy to see what's going on if
@@ -504,8 +503,8 @@ Proof.
 
    _Proof_: By induction on [l1].
 
-   - First, suppose [l1 = []].  We must show
-       ([] ++ l2) ++ l3 = [] ++ (l2 ++ l3),
+   - First, suppose [l1 = [::]].  We must show
+       ([::] ++ l2) ++ l3 = [::] ++ (l2 ++ l3),
      which follows directly from the definition of [++].
 
    - Next, suppose [l1 = n::l1'], with
@@ -519,24 +518,26 @@ Proof.
 
   Here is a similar example to be worked together in class: *)
 
-Theorem app_length : forall l1 l2 : natlist, 
-  length (l1 ++ l2) = (length l1) + (length l2).
+Theorem size_cat : forall l1 l2 : natlist, 
+  size (l1 ++ l2) = (size l1) + (size l2).
 Proof.
   (* WORKED IN CLASS *)
-  intros l1 l2. induction l1 as [| n l1'].
-  Case "l1 = nil".
-    reflexivity.
-  Case "l1 = cons".
-    simpl. rewrite -> IHl1'. reflexivity.  Qed.
+  move=> l1 l2. 
+  elim: l1 => [| n l1' IH]; first by [].
+  by rewrite /= IH.  
+Qed.
+
+(** In this example we show another way of discarding the first case
+    using the [first] _selector_. *)
 
 (** For a slightly more involved example of an inductive proof
     over lists, suppose we define a "cons on the right" function
-    [snoc] like this... *)
+    [rcons] like this... *)
 
-Fixpoint snoc (l:natlist) (v:nat) : natlist := 
+Fixpoint rcons (l:natlist) (v:nat) : natlist := 
   match l with
-  | nil    => [v]
-  | h :: t => h :: (snoc t v)
+  | nil    => [:: v]
+  | h :: t => h :: (rcons t v)
   end.
 
 (** ... and use it to define a list-reversing function [rev]
@@ -545,53 +546,49 @@ Fixpoint snoc (l:natlist) (v:nat) : natlist :=
 Fixpoint rev (l:natlist) : natlist := 
   match l with
   | nil    => nil
-  | h :: t => snoc (rev t) h
+  | h :: t => rcons (rev t) h
   end.
 
-Example test_rev1:            rev [1;2;3] = [3;2;1].
-Proof. reflexivity.  Qed.
+Example test_rev1:            rev [:: 1;2;3] = [:: 3;2;1].
+Proof. by [].  Qed.
 Example test_rev2:            rev nil = nil.
-Proof. reflexivity.  Qed.
+Proof. by [].  Qed.
 
 (** Now let's prove some more list theorems using our newly
-    defined [snoc] and [rev].  For something a little more challenging
+    defined [rcons] and [rev].  For something a little more challenging
     than the inductive proofs we've seen so far, let's prove that
     reversing a list does not change its length.  Our first attempt at
     this proof gets stuck in the successor case... *)
 
-Theorem rev_length_firsttry : forall l : natlist,
-  length (rev l) = length l.
+Theorem size_rev_firsttry : forall l : natlist,
+  size (rev l) = size l.
 Proof.
-  intros l. induction l as [| n l'].
-  Case "l = []".
-    reflexivity.
-  Case "l = n :: l'".
-    (* This is the tricky case.  Let's begin as usual 
+  elim=> [| n l' IH]; first by [].
+  (* This is the tricky case.  Let's begin as usual 
        by simplifying. *)
-    simpl. 
-    (* Now we seem to be stuck: the goal is an equality 
-       involving [snoc], but we don't have any equations 
-       in either the immediate context or the global 
-       environment that have anything to do with [snoc]! 
+  rewrite /=.
+  (* Now we seem to be stuck: the goal is an equality 
+     involving [rcons], but we don't have any equations 
+     in either the immediate context or the global 
+     environment that have anything to do with [rcons]! 
 
-       We can make a little progress by using the IH to 
-       rewrite the goal... *)
-    rewrite <- IHl'.
-    (* ... but now we can't go any further. *)
+     We can make a little progress by using the IH to 
+     rewrite the goal... (the [-] rewrite in the direction <-). *)
+  rewrite -IH.
+  (* ... but now we can't go any further. *)
 Abort.
 
-(** So let's take the equation about [snoc] that would have
+(** So let's take the equation about [rcons] that would have
     enabled us to make progress and prove it as a separate lemma. 
 *)
 
-Theorem length_snoc : forall n : nat, forall l : natlist,
-  length (snoc l n) = S (length l).
+Theorem size_rcons : forall n : nat, forall l : natlist,
+  size (rcons l n) = S (size l).
 Proof.
-  intros n l. induction l as [| n' l'].
-  Case "l = nil".
-    reflexivity.
-  Case "l = cons n' l'".
-    simpl. rewrite -> IHl'. reflexivity.  Qed. 
+  move=> n l.
+  elim: l => [| n' l' IH]; first by [].
+  by rewrite /= IH.
+Qed. 
 
 (**
     Note that we make the lemma as _general_ as possible: in particular,
@@ -604,55 +601,54 @@ Proof.
     
 (** Now we can complete the original proof. *)
 
-Theorem rev_length : forall l : natlist,
-  length (rev l) = length l.
+Theorem size_rev : forall l : natlist,
+  size (rev l) = size l.
 Proof.
-  intros l. induction l as [| n l'].
-  Case "l = nil".
-    reflexivity.
-  Case "l = cons".
-    simpl. rewrite -> length_snoc. 
-    rewrite -> IHl'. reflexivity.  Qed.
+  elim=> [| n l' IH]; first by [].
+  rewrite /= size_rcons.
+  rewrite IH.
+  by [].
+Qed.
 
 (** For comparison, here are informal proofs of these two theorems: 
 
     _Theorem_: For all numbers [n] and lists [l],
-       [length (snoc l n) = S (length l)].
+       [size (rcons l n) = S (size l)].
  
     _Proof_: By induction on [l].
 
-    - First, suppose [l = []].  We must show
-        length (snoc [] n) = S (length []),
+    - First, suppose [l = [::]].  We must show
+        size (rcons [] n) = S (size [::]),
       which follows directly from the definitions of
-      [length] and [snoc].
+      [size] and [rcons].
 
     - Next, suppose [l = n'::l'], with
-        length (snoc l' n) = S (length l').
+        size (rcons l' n) = S (size l').
       We must show
-        length (snoc (n' :: l') n) = S (length (n' :: l')).
-      By the definitions of [length] and [snoc], this
+        size (rcons (n' :: l') n) = S (size (n' :: l')).
+      By the definitions of [size] and [rcons], this
       follows from
-        S (length (snoc l' n)) = S (S (length l')),
+        S (size (rcons l' n)) = S (S (size l')),
 ]] 
       which is immediate from the induction hypothesis. [] *)
                         
-(** _Theorem_: For all lists [l], [length (rev l) = length l].
+(** _Theorem_: For all lists [l], [size (rev l) = size l].
     
     _Proof_: By induction on [l].  
 
-      - First, suppose [l = []].  We must show
-          length (rev []) = length [],
-        which follows directly from the definitions of [length] 
+      - First, suppose [l = [::]].  We must show
+          length (rev []) = size [],
+        which follows directly from the definitions of [size] 
         and [rev].
     
       - Next, suppose [l = n::l'], with
-          length (rev l') = length l'.
+          size (rev l') = size l'.
         We must show
-          length (rev (n :: l')) = length (n :: l').
+          size (rev (n :: l')) = size (n :: l').
         By the definition of [rev], this follows from
-          length (snoc (rev l') n) = S (length l')
+          size (rcons (rev l') n) = S (size l')
         which, by the previous lemma, is the same as
-          S (length (rev l')) = S (length l').
+          S (size (rev l')) = S (size l').
         This is immediate from the induction hypothesis. [] *)
 
 (** Obviously, the style of these proofs is rather longwinded
@@ -663,10 +659,10 @@ Proof.
     style, the above proof might look more like this: *)
 
 (** _Theorem_:
-     For all lists [l], [length (rev l) = length l].
+     For all lists [l], [size (rev l) = size l].
 
     _Proof_: First, observe that
-       length (snoc l n) = S (length l)
+       size (rcons l n) = S (size l)
      for any [l].  This follows by a straightforward induction on [l].
      The main property now follows by another straightforward
      induction on [l], using the observation together with the
@@ -677,7 +673,7 @@ Proof.
     proof at hand is to ones that the audience will already be
     familiar with.  The more pedantic style is a good default for
     present purposes. *)
-
+UNTIL HERE.
 (* ###################################################### *)
 (** ** [SearchAbout] *)
 
