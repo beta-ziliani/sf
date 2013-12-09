@@ -671,7 +671,7 @@ Theorem plus_id_example : forall n m:nat,
 
     As before, we need to be able to reason by assuming the existence
     of some numbers [n] and [m].  We also need to assume the hypothesis
-    [n = m]. The [intros] tactic will serve to move all three of these
+    [n = m]. The [move] tactic will serve to move all three of these
     from the goal into assumptions in the current context. 
 
     Since [n] and [m] are arbitrary numbers, we can't just use
