@@ -447,7 +447,7 @@ Fixpoint mult (n m : nat) : nat :=
   end.
 
 Example test_mult1: (mult 3 3) = 9.
-Proof. reflexivity.  Qed.
+Proof. by [].  Qed.
 
 (** You can match two expressions at once by putting a comma
     between them: *)
