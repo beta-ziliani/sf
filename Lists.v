@@ -135,6 +135,7 @@ Definition mylist := cons 1 (cons 2 (cons 3 nil)).
 
 Notation "x :: l" := (cons x l) (at level 60, right associativity).
 Notation "[ :: ]" := nil (at level 0).
+Notation "[ :: x ]" := (cons x nil) (at level 0).
 Notation "[ :: x ; .. ; y ]" := (cons x .. (cons y nil) ..) (at level 0).
 
 (** It is not necessary to fully understand these declarations,
@@ -572,8 +573,9 @@ Proof.
      in either the immediate context or the global 
      environment that have anything to do with [rcons]! 
 
-     We can make a little progress by using the IH to 
-     rewrite the goal... (the [-] rewrite in the direction <-). *)
+     We can make a little progress by using the IH to rewrite the
+     goal... (the [-] rewrite in the direction right-to-left). *)
+
   rewrite -IH.
   (* ... but now we can't go any further. *)
 Abort.
@@ -673,9 +675,9 @@ Qed.
     proof at hand is to ones that the audience will already be
     familiar with.  The more pedantic style is a good default for
     present purposes. *)
-UNTIL HERE.
+
 (* ###################################################### *)
-(** ** [SearchAbout] *)
+(** ** [Search] *)
 
 (** We've seen that proofs can make use of other theorems we've
     already proved, using [rewrite], and later we will see other ways
@@ -685,17 +687,18 @@ UNTIL HERE.
     is often hard even to remember what theorems have been proven,
     much less what they are named.
 
-    Coq's [SearchAbout] command is quite helpful with this.  Typing
-    [SearchAbout foo] will cause Coq to display a list of all theorems
+    Coq's [Search] command is quite helpful with this.  Typing
+    [Search foo] will cause Coq to display a list of all theorems
     involving [foo].  For example, try uncommenting the following to
     see a list of theorems that we have proved about [rev]: *)
 
-(*  SearchAbout rev. *)
+(*  Search rev.  *)
 
-(** Keep [SearchAbout] in mind as you do the following exercises and
-    throughout the rest of the course; it can save you a lot of time! *)
+(** Keep [Search] in mind as you do the following exercises and
+    throughout the rest of the course; it can save you a lot of
+    time! 
+*)
     
-
 
 (* ###################################################### *)
 (** ** List Exercises, Part 1 *)
@@ -703,13 +706,17 @@ UNTIL HERE.
 (** **** Exercise: 3 stars (list_exercises) *)
 (** More practice with lists. *)
 
-Theorem app_nil_end : forall l : natlist, 
-  l ++ [] = l.   
+Theorem cats0 : forall l : natlist, 
+  l ++ [::] = l.   
 Proof.
   (* FILL IN HERE *) Admitted.
 
+Theorem rev_rcons : forall (x : nat) (l : natlist),
+  rev (rcons l x) = x :: (rev l).
+Proof.
+  (* FILL IN HERE *) Admitted.
 
-Theorem rev_involutive : forall l : natlist,
+Theorem revK : forall l : natlist,
   rev (rev l) = l.
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -718,25 +725,24 @@ Proof.
     yourself getting tangled up, step back and try to look for a
     simpler way. *)
 
-Theorem app_ass4 : forall l1 l2 l3 l4 : natlist,
+Theorem catA4 : forall l1 l2 l3 l4 : natlist,
   l1 ++ (l2 ++ (l3 ++ l4)) = ((l1 ++ l2) ++ l3) ++ l4.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem snoc_append : forall (l:natlist) (n:nat),
-  snoc l n = l ++ [n].
+Theorem rcons_cat : forall (l:natlist) (n:nat),
+  rcons l n = l ++ [:: n].
 Proof.
   (* FILL IN HERE *) Admitted.
 
-
-Theorem distr_rev : forall l1 l2 : natlist,
+Theorem rev_cat : forall l1 l2 : natlist,
   rev (l1 ++ l2) = (rev l2) ++ (rev l1).
 Proof.
   (* FILL IN HERE *) Admitted.
 
 (** An exercise about your implementation of [nonzeros]: *)
 
-Lemma nonzeros_app : forall l1 l2 : natlist,
+Lemma nonzeros_cat : forall l1 l2 : natlist,
   nonzeros (l1 ++ l2) = (nonzeros l1) ++ (nonzeros l2).
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -748,7 +754,7 @@ Proof.
 (** **** Exercise: 2 stars (list_design) *)
 (** Design exercise: 
      - Write down a non-trivial theorem involving [cons]
-       ([::]), [snoc], and [app] ([++]).  
+       ([::]), [rcons], and [cat] ([++]).  
      - Prove it. *) 
 
 (* FILL IN HERE *)
@@ -759,23 +765,18 @@ Proof.
     definitions about bags in the previous problem. *)
 
 Theorem count_member_nonzero : forall (s : bag),
-  ble_nat 1 (count 1 (1 :: s)) = true.
+  leq 1 (count 1 (1 :: s)) = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-(** The following lemma about [ble_nat] might help you in the next proof. *)
-
-Theorem ble_n_Sn : forall n,
-  ble_nat n (S n) = true.
+(** The following lemma about [leq] might help you in the next proof. *)
+Theorem leqnSn : forall n,
+  leq n (S n) = true.
 Proof.
-  intros n. induction n as [| n'].
-  Case "0".  
-    simpl.  reflexivity.
-  Case "S n'".
-    simpl.  rewrite IHn'.  reflexivity.  Qed.
+  (* FILL IN HERE *) Admitted.
 
 Theorem remove_decreases_count: forall (s : bag),
-  ble_nat (count 0 (remove_one 0 s)) (count 0 s) = true.
+  leq (count 0 (remove_one 0 s)) (count 0 s) = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
@@ -794,7 +795,6 @@ Proof.
 
 There is a hard way and an easy way to solve this exercise.
 *)
-
 (* FILL IN HERE *)
 (** [] *)
 
@@ -815,12 +815,12 @@ Inductive natoption : Type :=
     it type [nat -> natlist -> nat], then we'll have to return some
     number when the list is too short! *)
 
-Fixpoint index_bad (n:nat) (l:natlist) : nat :=
+Fixpoint nth_bad (n:nat) (l:natlist) : nat :=
   match l with
   | nil => 42  (* arbitrary! *)
-  | a :: l' => match beq_nat n O with 
+  | a :: l' => match eqn n O with 
                | true => a 
-               | false => index_bad (pred n) l' 
+               | false => nth_bad (pred n) l' 
                end
   end.
 
@@ -829,39 +829,46 @@ Fixpoint index_bad (n:nat) (l:natlist) : nat :=
     and [Some a] when the list has enough members and [a] appears at
     position [n]. *)
 
-Fixpoint index (n:nat) (l:natlist) : natoption :=
+Fixpoint onth (n:nat) (l:natlist) : natoption :=
   match l with
   | nil => None 
-  | a :: l' => match beq_nat n O with 
+  | a :: l' => match eqn n O with 
                | true => Some a
-               | false => index (pred n) l' 
+               | false => onth (pred n) l' 
                end
   end.
 
-Example test_index1 :    index 0 [4;5;6;7]  = Some 4.
-Proof. reflexivity.  Qed.
-Example test_index2 :    index 3 [4;5;6;7]  = Some 7.
-Proof. reflexivity.  Qed.
-Example test_index3 :    index 10 [4;5;6;7] = None.
-Proof. reflexivity.  Qed.
+Example test_onth1 :    onth 0 [:: 4;5;6;7]  = Some 4.
+Proof. by []. Qed.
+Example test_onth2 :    onth 3 [:: 4;5;6;7]  = Some 7.
+Proof. by [].  Qed.
+Example test_onth3 :    onth 10 [:: 4;5;6;7] = None.
+Proof. by [].  Qed.
 
 (** This example is also an opportunity to introduce one more
     small feature of Coq's programming language: conditional
     expressions... *)
 
-Fixpoint index' (n:nat) (l:natlist) : natoption :=
+Fixpoint onth' (n:nat) (l:natlist) : natoption :=
   match l with
   | nil => None 
-  | a :: l' => if beq_nat n O then Some a else index' (pred n) l'
+  | a :: l' => if eqn n O is true then Some a else onth' (pred n) l'
   end.
 
-(** Coq's conditionals are exactly like those found in any other
-    language, with one small generalization.  Since the boolean type
-    is not built in, Coq actually allows conditional expressions over
-    _any_ inductively defined type with exactly two constructors.  The
-    guard is considered true if it evaluates to the first constructor
-    in the [Inductive] definition and false if it evaluates to the
-    second. *)
+(** Coq's original conditionals are exactly like those found in any
+    other language, with one small generalization.  Since the boolean
+    type is not built in, Coq actually allows conditional expressions
+    over _any_ inductively defined type with exactly two constructors.
+    The guard is considered true if it evaluates to the first
+    constructor in the [Inductive] definition and false if it
+    evaluates to the second.
+
+    However, Ssreflect's [if] is slightly more restrictive: if your
+    datatype is not Coq's booleans, then it requires the [is] keyword
+    to specify exactly to which constructor the [if] is casing. This
+    way, the computation does not depend on the order of the
+    constructors.  In our case, since we defined our own booleans, we
+    need to say [if ... is true]. *)
 
 (** The function below pulls the [nat] out of a [natoption], returning
     a supplied default in the [None] case. *)
@@ -873,48 +880,48 @@ Definition option_elim (d : nat) (o : natoption) : nat :=
   end.
 
 (** **** Exercise: 2 stars (hd_opt) *)
-(** Using the same idea, fix the [hd] function from earlier so we don't
+(** Using the same idea, fix the [head] function from earlier so we don't
    have to pass a default element for the [nil] case.  *)
 
-Definition hd_opt (l : natlist) : natoption :=
+Definition ohead (l : natlist) : natoption :=
   (* FILL IN HERE *) admit.
 
-Example test_hd_opt1 : hd_opt [] = None.
+Example test_ohead1 : ohead [::] = None.
  (* FILL IN HERE *) Admitted.
 
-Example test_hd_opt2 : hd_opt [1] = Some 1.
+Example test_ohead2 : ohead [:: 1] = Some 1.
  (* FILL IN HERE *) Admitted.
 
-Example test_hd_opt3 : hd_opt [5;6] = Some 5.
+Example test_ohead3 : ohead [:: 5;6] = Some 5.
  (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 1 star, optional (option_elim_hd) *)
-(** This exercise relates your new [hd_opt] to the old [hd]. *)
+(** **** Exercise: 1 star, optional (option_elim_head) *)
+(** This exercise relates your new [ohead] to the old [head]. *)
 
-Theorem option_elim_hd : forall (l:natlist) (default:nat),
-  hd default l = option_elim default (hd_opt l).
+Theorem option_elim_head : forall (l:natlist) (default:nat),
+  head default l = option_elim default (ohead l).
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 2 stars (beq_natlist) *)
-(** Fill in the definition of [beq_natlist], which compares
-    lists of numbers for equality.  Prove that [beq_natlist l l]
+(** **** Exercise: 2 stars (eqn_natlist) *)
+(** Fill in the definition of [eqn_natlist], which compares
+    lists of numbers for equality.  Prove that [eqn_natlist l l]
     yields [true] for every list [l]. *)
 
-Fixpoint beq_natlist (l1 l2 : natlist) : bool :=
+Fixpoint eqn_natlist (l1 l2 : natlist) : bool :=
   (* FILL IN HERE *) admit.
 
-Example test_beq_natlist1 :   (beq_natlist nil nil = true).
+Example test_eqn_natlist1 :   (eqn_natlist nil nil = true).
  (* FILL IN HERE *) Admitted.
-Example test_beq_natlist2 :   beq_natlist [1;2;3] [1;2;3] = true.
+Example test_eqn_natlist2 :   eqn_natlist [:: 1;2;3] [:: 1;2;3] = true.
  (* FILL IN HERE *) Admitted.
-Example test_beq_natlist3 :   beq_natlist [1;2;3] [1;2;4] = false.
+Example test_eqn_natlist3 :   eqn_natlist [:: 1;2;3] [:: 1;2;4] = false.
  (* FILL IN HERE *) Admitted.
 
-Theorem beq_natlist_refl : forall l:natlist,
-  true = beq_natlist l l.
+Theorem eqn_natlist_refl : forall l:natlist,
+  eqn_natlist l l = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
@@ -952,7 +959,7 @@ Definition insert (key value : nat) (d : dictionary) : dictionary :=
 Fixpoint find (key : nat) (d : dictionary) : natoption := 
   match d with 
   | empty         => None
-  | record k v d' => if (beq_nat key k) 
+  | record k v d' => if (eqn key k) is true
                        then (Some v) 
                        else (find key d')
   end.
@@ -971,7 +978,7 @@ Proof.
 (** Complete the following proof. *)
 
 Theorem dictionary_invariant2' : forall (d : dictionary) (m n o: nat),
-  beq_nat m n = false -> find m d = find m (insert n o d).
+  eqn m n = false -> find m d = find m (insert n o d).
 Proof.
  (* FILL IN HERE *) Admitted.
 (** [] *)
