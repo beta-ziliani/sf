@@ -1,5 +1,6 @@
 (** * MoreCoq: More About Coq *)
 
+Require Import ssreflect.
 Require Export Poly.
 
 (** This chapter introduces several more Coq tactics that,
@@ -7,7 +8,7 @@ Require Export Poly.
     functional programs we are writing. *)
 
 (* ###################################################### *)
-(** * The [apply] Tactic *)
+(** * The [apply:] Tactic *)
 
 (** We often encounter situations where the goal to be proved is
     exactly the same as some hypothesis in the context or some
@@ -15,53 +16,56 @@ Require Export Poly.
 
 Theorem silly1 : forall (n m o p : nat),
      n = m  ->
-     [n;o] = [n;p] ->
-     [n;o] = [m;p].
+     [:: n;o] = [:: n;p] ->
+     [:: n;o] = [:: m;p].
 Proof.
-  intros n m o p eq1 eq2.
-  rewrite <- eq1.
+  move=> n m o p eq1 eq2.
+  rewrite -eq1.
   (* At this point, we could finish with 
-     "[rewrite -> eq2. reflexivity.]" as we have 
+     "[by rewrite eq2.]" as we have 
      done several times above. But we can achieve the
      same effect in a single step by using the 
-     [apply] tactic instead: *)
-  apply eq2.  Qed.
+     [apply:] tactic instead: *)
+  apply: eq2.  
+Qed.
 
-(** The [apply] tactic also works with _conditional_ hypotheses
+(** The [apply:] tactic also works with _conditional_ hypotheses
     and lemmas: if the statement being applied is an implication, then
     the premises of this implication will be added to the list of
     subgoals needing to be proved. *)
 
 Theorem silly2 : forall (n m o p : nat),
      n = m  ->
-     (forall (q r : nat), q = r -> [q;o] = [r;p]) ->
-     [n;o] = [m;p].
+     (forall (q r : nat), q = r -> [:: q;o] = [:: r;p]) ->
+     [:: n;o] = [:: m;p].
 Proof.
-  intros n m o p eq1 eq2. 
-  apply eq2. apply eq1.  Qed.
+  move=> n m o p eq1 eq2. 
+  apply: eq2. apply: eq1.  
+Qed.
 
 (** You may find it instructive to experiment with this proof
     and see if there is a way to complete it using just [rewrite]
-    instead of [apply]. *)
+    instead of [apply:]. *)
 
-(** Typically, when we use [apply H], the statement [H] will
+(** Typically, when we use [apply: H], the statement [H] will
     begin with a [forall] binding some _universal variables_.  When
     Coq matches the current goal against the conclusion of [H], it
     will try to find appropriate values for these variables.  For
-    example, when we do [apply eq2] in the following proof, the
+    example, when we do [apply: eq2] in the following proof, the
     universal variable [q] in [eq2] gets instantiated with [n] and [r]
     gets instantiated with [m]. *)
 
 Theorem silly2a : forall (n m : nat),
      (n,n) = (m,m)  ->
-     (forall (q r : nat), (q,q) = (r,r) -> [q] = [r]) ->
-     [n] = [m].
+     (forall (q r : nat), (q,q) = (r,r) -> [:: q] = [:: r]) ->
+     [:: n] = [:: m].
 Proof.
-  intros n m eq1 eq2.
-  apply eq2. apply eq1.  Qed.
+  move=> n m eq1 eq2.
+  apply: eq2. apply: eq1. 
+Qed.
 
 (** **** Exercise: 2 stars, optional (silly_ex) *)
-(** Complete the following proof without using [simpl]. *)
+(** Complete the following proof without using [rewrite /=]. *)
 
 Theorem silly_ex : 
      (forall n, evenb n = true -> oddb (S n) = true) ->
@@ -71,36 +75,37 @@ Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** To use the [apply] tactic, the (conclusion of the) fact
-    being applied must match the goal _exactly_ -- for example, [apply]
+(** To use the [apply:] tactic, the (conclusion of the) fact
+    being applied must match the goal _exactly_ -- for example, [apply:]
     will not work if the left and right sides of the equality are
     swapped. *)
 
 Theorem silly3_firsttry : forall (n : nat),
-     true = beq_nat n 5  ->
-     beq_nat (S (S n)) 7 = true.
+     true = eqn n 5  ->
+     eqn (S (S n)) 7 = true.
 Proof.
-  intros n H.
-  simpl.
-  (* Here we cannot use [apply] directly *)
+  move=> n H.
+  rewrite /=.
+  (* Here we cannot use [apply:] directly *)
 Abort.
 
 (** In this case we can use the [symmetry] tactic, which switches the
     left and right sides of an equality in the goal. *)
 
 Theorem silly3 : forall (n : nat),
-     true = beq_nat n 5  ->
-     beq_nat (S (S n)) 7 = true.
+     true = eqn n 5  ->
+     eqn (S (S n)) 7 = true.
 Proof.
-  intros n H.
+  move=> n H.
   symmetry.
-  simpl. (* Actually, this [simpl] is unnecessary, since 
-            [apply] will do a [simpl] step first. *)  
-  apply H.  Qed.         
+  rewrite /=. (* Actually, this [rewrite /=] is unnecessary, since 
+            [apply:] will try reducing the goal. *)  
+  apply: H.
+Qed.
 
 (** **** Exercise: 3 stars (apply_exercise1) *)
-(** Hint: you can use [apply] with previously defined lemmas, not
-    just hypotheses in the context.  Remember that [SearchAbout] is
+(** Hint: you can use [apply:] with previously defined lemmas, not
+    just hypotheses in the context.  Remember that [Search] is
     your friend. *)
 
 Theorem rev_exercise1 : forall (l l' : list nat),
@@ -111,7 +116,7 @@ Proof.
 (** [] *)
 
 (** **** Exercise: 1 star, optional (apply_rewrite) *)
-(** Briefly explain the difference between the tactics [apply] and
+(** Briefly explain the difference between the tactics [apply:] and
     [rewrite].  Are there situations where both can usefully be
     applied?
   (* FILL IN HERE *)
@@ -120,56 +125,52 @@ Proof.
 
 
 (* ###################################################### *)
-(** * The [apply ... with ...] Tactic *)
+(** * The [apply:] Tactic with Arguments *)
 
 (** The following silly example uses two rewrites in a row to
-    get from [[a,b]] to [[e,f]]. *)
+    get from [[:: a,b]] to [[:: e,f]]. *)
 
-Example trans_eq_example : forall (a b c d e f : nat),
-     [a;b] = [c;d] ->
-     [c;d] = [e;f] ->
-     [a;b] = [e;f].
+Example eq_trans_example : forall (a b c d e f : nat),
+     [:: a;b] = [:: c;d] ->
+     [:: c;d] = [:: e;f] ->
+     [:: a;b] = [:: e;f].
 Proof.
-  intros a b c d e f eq1 eq2. 
-  rewrite -> eq1. rewrite -> eq2. reflexivity.  Qed.
+  move=> a b c d e f eq1 eq2. 
+  rewrite eq1. rewrite eq2.
+  by []. 
+Qed.
 
 (** Since this is a common pattern, we might
     abstract it out as a lemma recording once and for all
     the fact that equality is transitive. *)
 
-Theorem trans_eq : forall (X:Type) (n m o : X),
+Theorem eq_trans : forall (X:Type) (n m o : X),
   n = m -> m = o -> n = o.
-Proof.
-  intros X n m o eq1 eq2. rewrite -> eq1. rewrite -> eq2. 
-  reflexivity.  Qed.
+Proof. move=> X n m o eq1 eq2; by rewrite eq1 eq2. Qed.
 
 (** Now, we should be able to use [trans_eq] to
     prove the above example.  However, to do this we need
     a slight refinement of the [apply] tactic. *)
 
-Example trans_eq_example' : forall (a b c d e f : nat),
-     [a;b] = [c;d] ->
-     [c;d] = [e;f] ->
-     [a;b] = [e;f].
+Example eq_trans_example' : forall (a b c d e f : nat),
+     [:: a;b] = [:: c;d] ->
+     [:: c;d] = [:: e;f] ->
+     [:: a;b] = [:: e;f].
 Proof.
-  intros a b c d e f eq1 eq2. 
-  (* If we simply tell Coq [apply trans_eq] at this point,
+  move=> a b c d e f eq1 eq2. 
+  (* If we simply tell Coq [apply: eq_trans] at this point,
      it can tell (by matching the goal against the
      conclusion of the lemma) that it should instantiate [X]
-     with [[nat]], [n] with [[a,b]], and [o] with [[e,f]].
+     with [[nat]], [n] with [[:: a,b]], and [o] with [[::e,f]].
      However, the matching process doesn't determine an
      instantiation for [m]: we have to supply one explicitly
-     by adding [with (m:=[c,d])] to the invocation of
-     [apply]. *)
-  apply trans_eq with (m:=[c;d]). apply eq1. apply eq2.   Qed.
-
-(**  Actually, we usually don't have to include the name [m]
-    in the [with] clause; Coq is often smart enough to
-    figure out which instantiation we're giving. We could
-    instead write: [apply trans_eq with [c,d]]. *)
+     by adding [[:: c,d]] as the third argument to the invocation of
+     [apply:]. *)
+  apply: (eq_trans _ _ [:: c;d]). apply: eq1. apply: eq2.   
+Qed.
 
 (** **** Exercise: 3 stars, optional (apply_with_exercise) *)
-Example trans_eq_exercise : forall (n m o p : nat),
+Example eq_trans_exercise : forall (n m o p : nat),
      m = (minustwo o) ->
      (n + p) = m ->
      (n + p) = (minustwo o). 
@@ -236,23 +237,24 @@ Theorem eq_add_S : forall (n m : nat),
      S n = S m ->
      n = m.
 Proof.
-  intros n m eq. inversion eq. reflexivity.  Qed.
+  intros n m eq. 
+  case: eq. auto.  Qed.
 
 Theorem silly4 : forall (n m : nat),
-     [n] = [m] ->
+     [:: n] = [:: m] ->
      n = m.
 Proof.
-  intros n o eq. inversion eq. reflexivity.  Qed.
+  intros n o eq. case: eq. auto.  Qed.
 
 (** As a convenience, the [inversion] tactic can also
     destruct equalities between complex values, binding
     multiple variables as it goes. *)
 
 Theorem silly5 : forall (n m o : nat),
-     [n;m] = [o;o] ->
-     [n] = [m].
+     [:: n;m] = [:: o;o] ->
+     [:: n] = [:: m].
 Proof.
-  intros n m o eq. inversion eq. reflexivity. Qed.
+  intros n m o eq. case: eq. move=>->->. by []. Qed.
 
 (** **** Exercise: 1 star (sillyex1) *) 
 Example sillyex1 : forall (X : Type) (x y z : X) (l j : list X),
@@ -271,13 +273,13 @@ Proof.
 
 Theorem silly7 : forall (n m : nat),
      false = true ->
-     [n] = [m].
+     [:: n] = [:: m].
 Proof.
   intros n m contra. inversion contra.  Qed.
 
 (** **** Exercise: 1 star (sillyex2) *)
 Example sillyex2 : forall (X : Type) (x y z : X) (l j : list X),
-     x :: y :: l = [] ->
+     x :: y :: l = [::] ->
      y :: l = z :: j ->
      x = z.
 Proof.
@@ -301,15 +303,15 @@ Proof. intros A B f x y eq. rewrite eq.  reflexivity.  Qed.
 
 Theorem length_snoc' : forall (X : Type) (v : X)
                               (l : list X) (n : nat),
-     length l = n ->
-     length (snoc l v) = S n. 
+     size l = n ->
+     size (rcons l v) = S n. 
 Proof.
   intros X v l. induction l as [| v' l'].
-  Case "l = []". intros n eq. rewrite <- eq. reflexivity.
-  Case "l = v' :: l'". intros n eq. simpl. destruct n as [| n'].
-    SCase "n = 0". inversion eq.
-    SCase "n = S n'".
-      apply f_equal. apply IHl'. inversion eq. reflexivity. Qed.
+  intros n eq. rewrite <- eq. reflexivity.
+  intros n ee. simpl. destruct n as [| n'].
+    discriminate.
+    apply f_equal. apply IHl'. rewrite /= in ee. 
+case: ee. auto. Qed.
 
 
 (** **** Exercise: 2 stars, optional (practice) *)
@@ -319,12 +321,12 @@ Proof.
  
 
 Theorem beq_nat_0_l : forall n,
-   beq_nat 0 n = true -> n = 0.
+   eqn 0 n = true -> n = 0.
 Proof.
   (* FILL IN HERE *) Admitted.
 
 Theorem beq_nat_0_r : forall n,
-   beq_nat n 0 = true -> n = 0.
+   eqn n 0 = true -> n = 0.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
