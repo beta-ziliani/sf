@@ -447,7 +447,7 @@ Fixpoint mult (n m : nat) : nat :=
   end.
 
 Example test_mult1: (mult 3 3) = 9.
-Proof. reflexivity.  Qed.
+Proof. by [].  Qed.
 
 (** You can match two expressions at once by putting a comma
     between them: *)
@@ -625,7 +625,7 @@ Proof.  move=> n. by [].  Qed.
     theorem talks about _all_ natural numbers [n].  In order to prove
     theorems of this form, we need to to be able to reason by
     _assuming_ the existence of an arbitrary natural number [n].  This
-    is achieved in the proof by [intros n], which moves the quantifier
+    is achieved in the proof by [move=> n], which moves the quantifier
     from the goal to a "context" of current assumptions. In effect, we
     start the proof by saying "OK, suppose [n] is some arbitrary number."
 
@@ -636,7 +636,7 @@ Proof.  move=> n. by [].  Qed.
     lecture, and yet more in future lectures.  We also saw what are
     called _tacticals_, that is, additional pieces of syntax acting on
     a tactic: [by] and [=>]. The [by] tactical fails if the tactic
-    following it does not kills the goal. The empty brakets in [by []]
+    following it does not kill the goal. The empty brakets in [by []]
     is just an indication that no tactic is needed: the goal is
     trivially solvable. The [=>] tactical allows the introduction of
     variables. *)
@@ -671,7 +671,7 @@ Theorem plus_id_example : forall n m:nat,
 
     As before, we need to be able to reason by assuming the existence
     of some numbers [n] and [m].  We also need to assume the hypothesis
-    [n = m]. The [intros] tactic will serve to move all three of these
+    [n = m]. The [move] tactic will serve to move all three of these
     from the goal into assumptions in the current context. 
 
     Since [n] and [m] are arbitrary numbers, we can't just use
