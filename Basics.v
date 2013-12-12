@@ -369,7 +369,7 @@ Definition minustwo (n : nat) : nat :=
     prints numbers in arabic form by default: *)
 
 Check (S (S (S (S O)))).
-Eval simpl in (minustwo 4).
+Eval compute in (minustwo 4).
 
 (** The constructor [S] has the type [nat -> nat], just like the
     functions [minustwo] and [pred]: *)
@@ -423,7 +423,7 @@ Fixpoint plus (n : nat) (m : nat) : nat :=
 
 (** Adding three to two now gives us five, as we'd expect. *)
 
-Eval simpl in (plus (S (S (S O))) (S (S O))).
+Eval compute in (plus (S (S (S O))) (S (S O))).
 
 (** The simplification that Coq performs to reach this conclusion can
     be visualized as follows: *)

@@ -730,7 +730,7 @@ Theorem catA4 : forall l1 l2 l3 l4 : natlist,
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem rcons_cat : forall (l:natlist) (n:nat),
+Theorem rcons_as_cat : forall (l:natlist) (n:nat),
   rcons l n = l ++ [:: n].
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -879,7 +879,7 @@ Definition option_elim (d : nat) (o : natoption) : nat :=
   | None => d
   end.
 
-(** **** Exercise: 2 stars (hd_opt) *)
+(** **** Exercise: 2 stars (ohead) *)
 (** Using the same idea, fix the [head] function from earlier so we don't
    have to pass a default element for the [nil] case.  *)
 
