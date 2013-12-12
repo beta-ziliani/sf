@@ -532,7 +532,7 @@ Proof.
 
 Theorem addnA' : forall n m p : nat,
   n + (m + p) = (n + m) + p.
-Proof. move=> n m p. by elim: n => [| _ /= -> //].  Qed.
+Proof. move=> n m p. by elim: n => [| n' /= ->].  Qed.
 
 (** Coq is perfectly happy with this as a proof.  For a human,
     however, it is difficult to make much sense of it.  If you're used
