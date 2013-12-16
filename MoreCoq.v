@@ -26,7 +26,7 @@ Proof.
      done several times above. But we can achieve the
      same effect in a single step by using the 
      [apply:] tactic instead: *)
-  apply: eq2.  
+  by apply: eq2.  
 Qed.
 
 (** The [apply:] tactic also works with _conditional_ hypotheses
@@ -40,7 +40,8 @@ Theorem silly2 : forall (n m o p : nat),
      [:: n;o] = [:: m;p].
 Proof.
   move=> n m o p eq1 eq2. 
-  apply: eq2. apply: eq1.  
+  apply: eq2. 
+  by apply: eq1.  
 Qed.
 
 (** You may find it instructive to experiment with this proof
@@ -61,7 +62,8 @@ Theorem silly2a : forall (n m : nat),
      [:: n] = [:: m].
 Proof.
   move=> n m eq1 eq2.
-  apply: eq2. apply: eq1. 
+  apply: eq2. 
+  by apply: eq1. 
 Qed.
 
 (** **** Exercise: 2 stars, optional (silly_ex) *)
@@ -100,7 +102,7 @@ Proof.
   symmetry.
   rewrite /=. (* Actually, this [rewrite /=] is unnecessary, since 
             [apply:] will try reducing the goal. *)  
-  apply: H.
+  by apply: H.
 Qed.
 
 (** **** Exercise: 3 stars (apply_exercise1) *)
@@ -146,11 +148,11 @@ Qed.
 
 Theorem eq_trans : forall (X:Type) (n m o : X),
   n = m -> m = o -> n = o.
-Proof. move=> X n m o eq1 eq2; by rewrite eq1 eq2. Qed.
+Proof. by move=> ? ? ? ? -> ->. Qed.
 
 (** Now, we should be able to use [trans_eq] to
     prove the above example.  However, to do this we need
-    a slight refinement of the [apply] tactic. *)
+    a slight refinement of the [apply:] tactic. *)
 
 Example eq_trans_example' : forall (a b c d e f : nat),
      [:: a;b] = [:: c;d] ->
@@ -166,7 +168,9 @@ Proof.
      instantiation for [m]: we have to supply one explicitly
      by adding [[:: c,d]] as the third argument to the invocation of
      [apply:]. *)
-  apply: (eq_trans _ _ [:: c;d]). apply: eq1. apply: eq2.   
+  apply: (eq_trans _ _ [:: c;d]). 
+  apply: eq1. 
+  by apply: eq2.   
 Qed.
 
 (** **** Exercise: 3 stars, optional (apply_with_exercise) *)
@@ -180,7 +184,7 @@ Proof.
 
 
 (* ###################################################### *)
-(** * The [inversion] tactic *)
+(** * The [case] tactic for injection *)
 
 (** Recall the definition of natural numbers:
      Inductive nat : Type :=
@@ -206,47 +210,52 @@ Proof.
     booleans, [true] and [false] are unequal.  (Since neither [true]
     nor [false] take any arguments, their injectivity is not an issue.) *)
 
-(** Coq provides a tactic called [inversion] that allows us to exploit
-    these principles in proofs.
+(** Coq/Ssreflect provides tactic [case] and tactical [by] with the
+    ability to exploit these principles in proofs.
  
-    The [inversion] tactic is used like this.  Suppose [H] is a
+    The [case] tactic is used like this.  Suppose [H] is a
     hypothesis in the context (or a previously proven lemma) of the
     form
-      c a1 a2 ... an = d b1 b2 ... bm
-    for some constructors [c] and [d] and arguments [a1 ... an] and
-    [b1 ... bm].  Then [inversion H] instructs Coq to "invert" this
-    equality to extract the information it contains about these terms:
+      c a1 a2 ... an = c b1 b2 ... bm
+    for some constructor [c] and arguments [a1 ... an] and
+    [b1 ... bm].  Then [case: H] (or simply [case] if the goal is of
+    the form [H -> G]) instructs Coq to "inject" this equality to
+    extract the information it contains about these terms: by the
+    injectivity of this constructor we know that [a1 = b1], [a2 = b2],
+    etc.; [case: H] adds these facts to the goal as [a1 = b1 -> a2 = b2 -> ...].
 
-    - If [c] and [d] are the same constructor, then we know, by the
-      injectivity of this constructor, that [a1 = b1], [a2 = b2],
-      etc.; [inversion H] adds these facts to the context, and tries
-      to use them to rewrite the goal.
+    If, instead, we have a hypothesis [H] of the form 
+      c a1 a2 ... an = d b1 b2 ... bm 
+    for some constructor [c] and [d], and arguments [a1 ... an]
+    and [b1 ... bm], where [c] and [d] are different constructors,
+    then the hypothesis [H] is contradictory.  That is, a false
+    assumption has crept into the context, and this means that any
+    goal whatsoever is provable!  In this case, [by] marks
+    the current goal as completed and pops it off the goal stack. *)
 
-    - If [c] and [d] are different constructors, then the hypothesis
-      [H] is contradictory.  That is, a false assumption has crept
-      into the context, and this means that any goal whatsoever is
-      provable!  In this case, [inversion H] marks the current goal as
-      completed and pops it off the goal stack. *)
-
-(** The [inversion] tactic is probably easier to understand by
-    seeing it in action than from general descriptions like the above.
+(** These particular usages of [case] and [by] is probably easier to understand by
+    seeing them in action than from general descriptions like the above.
     Below you will find example theorems that demonstrate the use of
-    [inversion] and exercises to test your understanding. *)
+    [case] and [by], and exercises to test your understanding. *)
 
 Theorem eq_add_S : forall (n m : nat),
      S n = S m ->
      n = m.
 Proof.
-  intros n m eq. 
-  case: eq. auto.  Qed.
+  move=> n m. 
+  case. 
+  by [].
+Qed.
 
 Theorem silly4 : forall (n m : nat),
      [:: n] = [:: m] ->
      n = m.
 Proof.
-  intros n o eq. case: eq. auto.  Qed.
+  move=> n o.
+  by case. 
+Qed.
 
-(** As a convenience, the [inversion] tactic can also
+(** As a convenience, the [case] tactic can also
     destruct equalities between complex values, binding
     multiple variables as it goes. *)
 
@@ -254,7 +263,10 @@ Theorem silly5 : forall (n m o : nat),
      [:: n;m] = [:: o;o] ->
      [:: n] = [:: m].
 Proof.
-  intros n m o eq. case: eq. move=>->->. by []. Qed.
+  move=> n m o.
+  case. 
+  by move=>->->. 
+Qed.
 
 (** **** Exercise: 1 star (sillyex1) *) 
 Example sillyex1 : forall (X : Type) (x y z : X) (l j : list X),
@@ -269,13 +281,16 @@ Theorem silly6 : forall (n : nat),
      S n = O ->
      2 + 2 = 5.
 Proof.
-  intros n contra. inversion contra. Qed.
+  move=>n. by [].
+Qed.
 
 Theorem silly7 : forall (n m : nat),
      false = true ->
      [:: n] = [:: m].
 Proof.
-  intros n m contra. inversion contra.  Qed.
+  move=> n m.
+  by [].
+Qed.
 
 (** **** Exercise: 1 star (sillyex2) *)
 Example sillyex2 : forall (X : Type) (x y z : X) (l j : list X),
@@ -293,26 +308,72 @@ Proof.
 
 Theorem f_equal : forall (A B : Type) (f: A -> B) (x y: A), 
     x = y -> f x = f y. 
-Proof. intros A B f x y eq. rewrite eq.  reflexivity.  Qed. 
+Proof. by move=> A B f x y ->.  Qed. 
 
-(** Here's another illustration of [inversion].  This is a slightly
+(** Here's another illustration of [case].  This is a slightly
     roundabout way of stating a fact that we have already proved
     above.  The extra equalities force us to do a little more
     equational reasoning and exercise some of the tactics we've seen
     recently. *)
 
-Theorem length_snoc' : forall (X : Type) (v : X)
+Theorem size_rcons' : forall (X : Type) (v : X)
                               (l : list X) (n : nat),
      size l = n ->
      size (rcons l v) = S n. 
 Proof.
-  intros X v l. induction l as [| v' l'].
-  intros n eq. rewrite <- eq. reflexivity.
-  intros n ee. simpl. destruct n as [| n'].
-    discriminate.
-    apply f_equal. apply IHl'. rewrite /= in ee. 
-case: ee. auto. Qed.
+  move=> X v.
+  elim=> [| v' l' IH] n eq.
+  - by rewrite -eq.
+  rewrite /=. 
+  case: n => [|n'] in eq *.
+  - by [].
+  apply: f_equal. 
+  apply: IH.
+  case: eq.  (** Note that no simplification was needed! *) 
+  by [].
+Qed.
 
+(** Note also the use of [in eq *].  It is instructing [case] to push
+    the hypothesis [eq] to the goal, do the case on [n], and then pop
+    back the hypothesis with the same name, [eq].  More precisely, the
+    following sequence of events is triggered by the line
+       [case: n => [|n'] in eq *]
+
+    1- [in eq *] pushes [eq] onto the goal, getting
+      [ size (v' :: l') = n -> S (size (rcons l' v)) = S n ]
+
+    2-a [case: n] further pushes variable [n] onto the context:
+      [ forall n, size (v' :: l') = n -> S (size (rcons l' v)) = S n ]
+
+    2-b [case: n] after pushing [n] performs a case analysis on the
+    first hypothesis ([n] in this case), getting subcases
+
+      [ size (v' :: l) = 0 -> S (size (rcons l' v)) = S 0 ]
+
+    and
+
+      [ forall n', size (v' :: l) = n' -> S (size (rcons l' v)) = S n' ]
+
+    3- The tactical for introduction [=>] pops variable [n'] on the second goal.
+
+    4- [in eq *] restores the context, poping the first hypothesis
+    giving it the name [eq].
+
+    Note that if we do not introduce the variables from the case (with
+    the [=>] tactical) then the last pop operation might potentially
+    introduce a different hypothesis (e.g., [n']) instead of [eq].
+    But Ssreflect forbids this, throwing a pretty obsucre error message:
+
+    "tampering with discharged assumptions of "in" tactical".
+
+    Finally, the [*] at the end of [in eq *] is telling Coq that the
+    tactic ([case]) should affect the goal. *)
+
+(** **** Exercise: 2 stars, (playing_with_in) *)
+(** Try removing the [*] in the [in eq *] part of the proof
+    [size_rcons'] removing.  What happened?  Try again removing the
+    [eq].  How can you do the same without the [in] tactical?
+*)
 
 (** **** Exercise: 2 stars, optional (practice) *)
 (** A couple more nontrivial but not-too-complicated proofs to work
