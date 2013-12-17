@@ -381,58 +381,150 @@ Qed.
     involve applying lemmas from earlier lectures or homeworks. *)
  
 
-Theorem beq_nat_0_l : forall n,
+Theorem eqn_0_l : forall n,
    eqn 0 n = true -> n = 0.
 Proof.
   (* FILL IN HERE *) Admitted.
 
-Theorem beq_nat_0_r : forall n,
+Theorem eqn_0_r : forall n,
    eqn n 0 = true -> n = 0.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-
 (* ###################################################### *)
 (** * Using Tactics on Hypotheses *)
 
 (** By default, most tactics work on the goal formula and leave
-    the context unchanged.  However, most tactics also have a variant
-    that performs a similar operation on a statement in the context.
+    the context unchanged.  However, as we saw in the previous examples, 
+    we can use the [in] tactical to perform the tactic on certain hypotheses.
 
-    For example, the tactic [simpl in H] performs simplification in
+    For example, the tactic [rewrite /= in H] performs simplification in
     the hypothesis named [H] in the context. *)
 
 Theorem S_inj : forall (n m : nat) (b : bool),
-     beq_nat (S n) (S m) = b  ->
-     beq_nat n m = b. 
+     eqn (S n) (S m) = b  ->
+     eqn n m = b. 
 Proof.
-  intros n m b H. simpl in H. apply H.  Qed.
+  move=> n m b H.
+  rewrite /= in H.
+  by apply: H.
+Qed.
 
-(** Similarly, the tactic [apply L in H] matches some
-    conditional statement [L] (of the form [L1 -> L2], say) against a
-    hypothesis [H] in the context.  However, unlike ordinary
-    [apply] (which rewrites a goal matching [L2] into a subgoal [L1]),
-    [apply L in H] matches [H] against [L1] and, if successful,
-    replaces it with [L2].
- 
-    In other words, [apply L in H] gives us a form of "forward
-    reasoning" -- from [L1 -> L2] and a hypothesis matching [L1], it
-    gives us a hypothesis matching [L2].  By contrast, [apply L] is
-    "backward reasoning" -- it says that if we know [L1->L2] and we
-    are trying to prove [L2], it suffices to prove [L1].  
+
+(** (But, as we saw in other examples, we can avoid this simplfication
+    in the hypothesis if we perform the simplification in the goal
+    prior to popping it in the context.) *)
+
+Theorem S_inj' : forall (n m : nat) (b : bool),
+     eqn (S n) (S m) = b  ->
+     eqn n m = b. 
+Proof.
+  move=> n m b /= H.
+  by apply: H.
+Qed.
+
+
+
+(** * Digresion: Coercions *)
+
+(** In order to make our theorems more readable, we can "coerce" any
+    proposition of the form [b = true] into writting simply [b].  This
+    is done in two steps.  First, we create the function [is_true]
+    that given a boolean [b] returns the proposition [b = true]. *)
+
+Definition is_true (b : bool) := b = true.
+
+(** Then, we "coerce" any boolean into a proposition by using [is_true]. *)
+
+Coercion is_true : bool >-> Sortclass.
+
+(** Without going into too much detail, basically it is stating that
+    when an element of a [Sortclass] is expected (a [Prop] in our
+    case), and a [bool] is given, then Coq should use [is_true] to
+    perform the coercion. *)
+
+(** With this coercion we can write the following example. *)
+Theorem extremely_silly1 : forall n : nat, eqn n 0 -> eqn n 0.
+Proof. by []. Qed.
+
+(** We can improve the readability of the theorem further by using a
+    standard notation for decidable equality. *)
+Notation "x == y" := (eqn x y)
+  (at level 70, no associativity).
+
+Theorem extremely_silly2 : forall n : nat, 
+     n == 0 -> S n == 1.
+Proof. by []. Qed.
+
+
+
+(* ###################################################### *)
+(** * Backward vs. forward reasoning *)
+
+(** We mentioned at the beginning of this chapter the tactic [apply:].
+    Logically speaking, with [H : F -> G], [apply: H] changes goal [G]
+    to [F].  That is, it allows us to go "backwards" from [G] to [F],
+    in the hope that [F] is simpler to prove.
+
+    Consider the following example.
+*)
+Theorem extremely_silly3 : forall n, 
+     2 == S (S n) -> 0 == n.
+Proof.
+  move=>n H.
+  apply: S_inj.
+  apply: S_inj.
+  by apply: H.
+Qed.
+
+(** Each [apply:] of the [S_inj] theorem adds a [S]uccessor to each
+    side of the equality.  After the second application we have the
+    goal matching exactly the hypothesis [H], and therefore we
+    conclude by applying [H].
+
+    In a similar way we can proceed on the other direction: take [H]
+    and "specialize it" to match the goal.  That is, use [S_inj] to
+    remove a [S]uccessor from [H], until we have [H] matching our
+    goal.  For this we can use the tactic [move].
 
     Here is a variant of a proof from above, using forward reasoning
     throughout instead of backward reasoning. *)
 
-Theorem silly3' : forall (n : nat),
-  (beq_nat n 5 = true -> beq_nat (S (S n)) 7 = true) ->
-     true = beq_nat n 5  ->
-     true = beq_nat (S (S n)) 7.
+Theorem extremelly_silly3' : forall n,
+     2 == S (S n) -> 0 == n.
 Proof.
-  intros n eq H.
-  symmetry in H. apply eq in H. symmetry in H. 
-  apply H.  Qed.
+  move=>n H.
+  move: {H} (S_inj _ _ _ H)=>H.
+  move: {H} (S_inj _ _ _ H)=>H.
+  by apply: H.
+Qed.
+
+(** What is going on here?  Let's see the same example, but
+    decomposing each action. *)
+Theorem extremelly_silly3'' : forall n,
+     2 == S (S n) -> 0 == n.
+Proof.
+  move=>n H.
+(** At this point we want to bring the knowledge that [S_inj] applied
+    with [H] removes a successor from [H].  *)
+  move: (S_inj _ _ _  H).
+(** But [H] is still there!  We need to remove it in order to pop the
+    hypothesis back with the same name. *)
+  move: H => _ H.
+(** That is, we first bring [H] to the goal, getting the goal
+    [2 == S (S n) -> 1 == S n -> 0 == n]
+    and then we introduce again the first two hypothesis.  But by
+    naming the first one [_] we are effectively throwing it away.
+    The same effect can be obtained by adding [{H}].  Therefore, 
+    the previous two lines can be compressed to the shorter one:
+*)
+  move: {H} (S_inj _ _ _ H)=>H.
+(** And now we are done.  We actually do not need to specify that
+  there is a hypothesis proving our goal.*) 
+  by [].
+Qed.
+
 
 (** Forward reasoning starts from what is _given_ (premises,
     previously proven theorems) and iteratively draws conclusions from
@@ -446,16 +538,18 @@ Proof.
     about.  *)
 
 (** **** Exercise: 3 stars (plus_n_n_injective) *)
-(** Practice using "in" variants in this exercise. *)
+(** Practice using [have], [in], and [move] as we saw in this
+    chapter. *)
 
 Theorem plus_n_n_injective : forall n m,
      n + n = m + m ->
      n = m.
 Proof.
-  intros n. induction n as [| n'].
-    (* Hint: use the plus_n_Sm lemma *)
+  elim=> [| n' IH].
+(** Hint: [plus_Sn_m] may be of help. *)
     (* FILL IN HERE *) Admitted.
 (** [] *)
+
 
 (* ###################################################### *)
 (** * Varying the Induction Hypothesis *)
@@ -463,34 +557,32 @@ Proof.
 (** Sometimes it is important to control the exact form of the
     induction hypothesis when carrying out inductive proofs in Coq.
     In particular, we need to be careful about which of the
-    assumptions we move (using [intros]) from the goal to the context
-    before invoking the [induction] tactic.  For example, suppose 
+    assumptions we move (using [move]) from the goal to the context
+    before invoking the [elim] tactic.  For example, suppose 
     we want to show that the [double] function is injective -- i.e., 
     that it always maps different arguments to different results:  
     Theorem double_injective: forall n m, double n = double m -> n = m. 
     The way we _start_ this proof is a little bit delicate: if we 
     begin it with
-      intros n. induction n.
+      elim.
 ]] 
     all is well.  But if we begin it with
-      intros n m. induction n.
+      move=> n m. elim: n.
     we get stuck in the middle of the inductive case... *)
 
 Theorem double_injective_FAILED : forall n m,
      double n = double m ->
      n = m.
 Proof.
-  intros n m. induction n as [| n'].
-  Case "n = O". simpl. intros eq. destruct m as [| m'].
-    SCase "m = O". reflexivity.
-    SCase "m = S m'". inversion eq. 
-  Case "n = S n'". intros eq. destruct m as [| m'].
-    SCase "m = O". inversion eq.
-    SCase "m = S m'".  apply f_equal. 
-      (* Here we are stuck.  The induction hypothesis, [IHn'], does
+  move=>n m. elim: n => [| n'].
+  - by case: m.
+  case: m => [|m'] IH eq.
+  - by [].
+  apply: f_equal.
+      (* Here we are stuck.  The induction hypothesis, [IH], does
          not give us [n' = m'] -- there is an extra [S] in the
          way -- so the goal is not provable. *)
-      Abort.
+Abort.
 
 (** What went wrong? *)
 
@@ -500,7 +592,7 @@ Proof.
     [n] and [m]..." and we now have to prove that, if [double n =
     double m] for _this particular_ [n] and [m], then [n = m].
 
-    The next tactic, [induction n] says to Coq: We are going to show
+    The next tactic, [elim: n] says to Coq: We are going to show
     the goal by induction on [n].  That is, we are going to prove that
     the proposition
 
@@ -547,47 +639,49 @@ Proof.
     _single_ [m]. *)
 
 (** The good proof of [double_injective] leaves [m] in the goal
-    statement at the point where the [induction] tactic is invoked on
+    statement at the point where the [elim] tactic is invoked on
     [n]: *)
 
 Theorem double_injective : forall n m,
      double n = double m ->
      n = m.
 Proof.
-  intros n. induction n as [| n'].
-  Case "n = O". simpl. intros m eq. destruct m as [| m'].
-    SCase "m = O". reflexivity.
-    SCase "m = S m'". inversion eq. 
-  Case "n = S n'". 
-    (* Notice that both the goal and the induction
-       hypothesis have changed: the goal asks us to prove
-       something more general (i.e., to prove the
-       statement for _every_ [m]), but the IH is
-       correspondingly more flexible, allowing us to
-       choose any [m] we like when we apply the IH.  *)
-    intros m eq.
-    (* Now we choose a particular [m] and introduce the
-       assumption that [double n = double m].  Since we
-       are doing a case analysis on [n], we need a case
-       analysis on [m] to keep the two "in sync." *)
-    destruct m as [| m'].
-    SCase "m = O". 
-      (* The 0 case is trivial *)
-      inversion eq.  
-    SCase "m = S m'".  
-      apply f_equal. 
-      (* At this point, since we are in the second
-         branch of the [destruct m], the [m'] mentioned
-         in the context at this point is actually the
-         predecessor of the one we started out talking
-         about.  Since we are also in the [S] branch of
-         the induction, this is perfect: if we
-         instantiate the generic [m] in the IH with the
-         [m'] that we are talking about right now (this
-         instantiation is performed automatically by
-         [apply]), then [IHn'] gives us exactly what we
-         need to finish the proof. *)
-      apply IHn'. inversion eq. reflexivity. Qed.
+  elim=> [| n'].
+  - by case.
+  (* Notice that both the goal and the induction
+     hypothesis have changed: the goal asks us to prove
+     something more general (i.e., to prove the
+     statement for _every_ [m]), but the IH is
+     correspondingly more flexible, allowing us to
+     choose any [m] we like when we apply the IH.  *)
+  move=> IH m eq.
+  (* Now we choose a particular [m] and introduce the
+     assumption that [double n = double m].  Since we
+     are doing a case analysis on [n], we need a case
+     analysis on [m] to keep the two "in sync." *)
+  (* We should have left [m] in the goal and perform [case] directly,
+     but since we pop it to the goal, we need to make sure we also
+     affect [eq] when doing the case.  This is done with the [in]
+     tactical. *) 
+  case: m => [| m'] in eq *.
+    (* The 0 case is trivial *)
+  - by [].
+  apply: f_equal. 
+  (* At this point, since we are in the second
+     branch of the [case: m], the [m'] mentioned
+     in the context at this point is actually the
+     predecessor of the one we started out talking
+     about.  Since we are also in the [S] branch of
+     the induction, this is perfect: if we
+     instantiate the generic [m] in the IH with the
+     [m'] that we are talking about right now (this
+     instantiation is performed automatically by
+     [apply:]), then [IH] gives us exactly what we
+     need to finish the proof. *)
+  apply: IH.
+  case: eq.
+  by [].
+Qed.
 
 (** What this teaches us is that we need to be careful about using
     induction to try to prove something too specific: If we're proving
@@ -595,16 +689,15 @@ Proof.
     leave [m] generic. *)
 
 (** The proof of this theorem has to be treated similarly: *)
-
-(** **** Exercise: 2 stars (beq_nat_true) *)
-Theorem beq_nat_true : forall n m,
-    beq_nat n m = true -> n = m.
+(** **** Exercise: 2 stars (eqnP_r) *)
+Theorem eqnP_r : forall n m,
+    n == m -> n = m.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 2 stars, advanced (beq_nat_true_informal) *)
-(** Give a careful informal proof of [beq_nat_true], being as explicit
+(** **** Exercise: 2 stars, advanced (eqnP_r_informal) *)
+(** Give a careful informal proof of [eqnP_r], being as explicit
     as possible about quantifiers. *)
 
 (* FILL IN HERE *)
@@ -762,6 +855,7 @@ Theorem app_length_twice : forall (X:Type) (n:nat) (l:list X),
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
+
 
 (* ###################################################### *)
 (** * Using [destruct] on Compound Expressions *)
