@@ -704,7 +704,7 @@ Proof.
 (** [] *)
 
 
-(** The strategy of doing fewer [intros] before an [induction] doesn't
+(** The strategy of doing fewer [move]s before an [elim] doesn't
     always work directly; sometimes a little _rearrangement_ of
     quantified variables is needed.  Suppose, for example, that we
     wanted to prove [double_injective] by induction on [m] instead of
@@ -714,20 +714,17 @@ Theorem double_injective_take2_FAILED : forall n m,
      double n = double m ->
      n = m.
 Proof.
-  intros n m. induction m as [| m'].
-  Case "m = O". simpl. intros eq. destruct n as [| n'].
-    SCase "n = O". reflexivity.
-    SCase "n = S n'". inversion eq. 
-  Case "m = S m'". intros eq. destruct n as [| n'].
-    SCase "n = O". inversion eq.
-    SCase "n = S n'".  apply f_equal.
-        (* Stuck again here, just like before. *)
+  move=> n. elim => [| m'].
+  - by case:n.
+  case: n => [|n'].
+  - by [].
+  move=> IH H.
+  apply: f_equal.
+  (* Stuck again here, just like before. *)
 Abort.
 
 (** The problem is that, to do induction on [m], we must first
-    introduce [n].  (If we simply say [induction m] without
-    introducing anything first, Coq will automatically introduce
-    [n] for us!)   *)
+    introduce [n].  *)
 
 (** What can we do about this?  One possibility is to rewrite the
     statement of the lemma so that [m] is quantified before [n].  This
@@ -739,30 +736,30 @@ Abort.
 (**  What we can do instead is to first introduce all the
     quantified variables and then _re-generalize_ one or more of
     them, taking them out of the context and putting them back at
-    the beginning of the goal.  The [generalize dependent] tactic
+    the beginning of the goal.  The [move] tactic
     does this. *)
 
 Theorem double_injective_take2 : forall n m,
      double n = double m ->
      n = m.
 Proof.
-  intros n m. 
+  move=>n m. 
   (* [n] and [m] are both in the context *)
-  generalize dependent n.
+  move: n.
   (* Now [n] is back in the goal and we can do induction on
      [m] and get a sufficiently general IH. *)
-  induction m as [| m'].
-  Case "m = O". simpl. intros n eq. destruct n as [| n'].
-    SCase "n = O". reflexivity.
-    SCase "n = S n'". inversion eq.
-  Case "m = S m'". intros n eq. destruct n as [| n'].
-    SCase "n = O". inversion eq.
-    SCase "n = S n'". apply f_equal.
-      apply IHm'. inversion eq. reflexivity. Qed.
+  elim: m => [| m' IH].
+  - by case.
+  case => [| n'].
+  - by [].
+  move=> H; apply: f_equal.
+  apply: IH.
+  by case: H.
+Qed.
 
 (** Let's look at an informal proof of this theorem.  Note that
     the proposition we prove by induction leaves [n] quantified,
-    corresponding to the use of generalize dependent in our formal
+    corresponding to the use of [move:] in our formal
     proof.
 
 _Theorem_: For any nats [n] and [m], if [double n = double m], then
@@ -793,8 +790,8 @@ _Proof_: Let [m] be a [nat]. We prove by induction on [m] that, for
     If [n = 0], then by definition [double n = 0], a contradiction.
     Thus, we may assume that [n = S n'] for some [n'], and again by
     the definition of [double] we have [S (S (double n')) = S (S
-    (double m'))], which implies by inversion that [double n' = double
-    m'].
+    (double m'))], which implies by double injection on [S] that
+    [double n' = double m'].
 
     Instantiating the induction hypothesis with [n'] thus allows us to
     conclude that [n' = m'], and it follows immediately that [S n' = S
@@ -805,14 +802,14 @@ _Proof_: Let [m] be a [nat]. We prove by induction on [m] that, for
 
 (** Prove this by induction on [l]. *)
 
-Theorem index_after_last: forall (n : nat) (X : Type) (l : list X),
-     length l = n ->
-     index n l = None.
+Theorem onth_after_last: forall (n : nat) (X : Type) (l : list X),
+     size l = n ->
+     onth n l = None.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 3 stars, advanced, optional (index_after_last_informal) *)
+(** **** Exercise: 3 stars, advanced, optional (onth_after_last_informal) *)
 (** Write an informal proof corresponding to your Coq proof
     of [index_after_last]:
  
@@ -824,34 +821,33 @@ Proof.
 []
 *)
 
-(** **** Exercise: 3 stars, optional (gen_dep_practice_more) *)
+(** **** Exercise: 3 stars, optional (generalization_practice_more) *)
 (** Prove this by induction on [l]. *)
 
-Theorem length_snoc''' : forall (n : nat) (X : Type) 
+Theorem size_rcons''' : forall (n : nat) (X : Type) 
                               (v : X) (l : list X),
-     length l = n ->
-     length (snoc l v) = S n. 
+     size l = n ->
+     size (rcons l v) = S n. 
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 3 stars, optional (app_length_cons) *)
-(** Prove this by induction on [l1], without using [app_length]. *)
-
-Theorem app_length_cons : forall (X : Type) (l1 l2 : list X) 
+(** **** Exercise: 3 stars, optional (size_cat_cons) *)
+(** Prove this by induction on [l1], without using [size_cat]. *)
+Theorem size_cat_cons : forall (X : Type) (l1 l2 : list X) 
                                   (x : X) (n : nat),
-     length (l1 ++ (x :: l2)) = n ->
-     S (length (l1 ++ l2)) = n.
+     size (l1 ++ (x :: l2)) = n ->
+     S (size (l1 ++ l2)) = n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+ (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 4 stars, optional (app_length_twice) *)
-(** Prove this by induction on [l], without using app_length. *)
+(** **** Exercise: 4 stars, optional (size_cat_twice) *)
+(** Prove this by induction on [l], without using size_cat. *)
 
-Theorem app_length_twice : forall (X:Type) (n:nat) (l:list X),
-     length l = n ->
-     length (l ++ l) = n + n.
+Theorem size_cat_twice : forall (X:Type) (n:nat) (l:list X),
+     size l = n ->
+     size (l ++ l) = n + n.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
