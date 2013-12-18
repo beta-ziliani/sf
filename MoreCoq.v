@@ -7,6 +7,43 @@ Require Export Poly.
     together, allow us to prove many more theorems about the
     functional programs we are writing. *)
 
+(** But first, let's take a look at the [Search] tool in Ssreflect.
+    We have seen some uses of it, but they cover only a tiny portion
+    of what it can really do.  The general form of command is
+
+    [Search _pattern_ _pattern_* in _module_]
+
+    Search will match the first pattern against any subterm _in the
+    conclusion_ of every definition (or lemma), and return only those
+    who match.  A _pattern_ in Ssreflect is any term with or without
+    holes.  For instance, the following search returns all the lemmas
+    with a multiplication in their conclusion.  *) 
+Search (_ * _).
+
+(** The second (and third and fourth and ...) pattern filters further
+    the definitions and lemmas containing any subterm (not only in the
+    conclusion) containing that pattern.  For instance, the following
+    search restricts those lemmas containing a multiplication in their
+    conclusion _and_ containing an addition. *)
+Search (_ * _) (_ + _).
+
+(** We can also provide the scope of notations. For instance, the
+    following search searches for lemmas about pairs. *)
+Search _ (_ * _)%type.
+
+(** (Note the first underscore.  It is leaving blank the filter for
+    conlusions only.)  *)
+
+(** Finally, we can also restrict the name of a lemma by providing a
+    string.  For instance, the following search restricts further the
+    previous search to contain only lemmas with name containing
+    curry. *)
+
+Search _ "curry" (_ * _)%type .
+
+(** Now, let's go back to the main reason of this chapter, the
+    _tactics_. *)
+
 (* ###################################################### *)
 (** * The [apply:] Tactic *)
 
