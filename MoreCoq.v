@@ -148,7 +148,7 @@ Qed.
 
 Theorem eq_trans : forall (X:Type) (n m o : X),
   n = m -> m = o -> n = o.
-Proof. by move=> ? ? ? ? -> ->. Qed.
+Proof. by move=> X n m o -> ->. Qed.
 
 (** Now, we should be able to use [trans_eq] to
     prove the above example.  However, to do this we need
@@ -854,43 +854,47 @@ Proof.
 
 
 (* ###################################################### *)
-(** * Using [destruct] on Compound Expressions *)
+(** * Using [case:] on Compound Expressions *)
 
-(** We have seen many examples where the [destruct] tactic is
+(** We have seen many examples where the [case:] tactic is
     used to perform case analysis of the value of some variable.  But
     sometimes we need to reason by cases on the result of some
-    _expression_.  We can also do this with [destruct].
+    _expression_.  We can also do this with [case:].
 
     Here are some examples: *)
 
 Definition sillyfun (n : nat) : bool :=
-  if beq_nat n 3 then false
-  else if beq_nat n 5 then false
+  if n == 3 is true then false
+  else if n == 5 is true then false
   else false.
 
 Theorem sillyfun_false : forall (n : nat),
   sillyfun n = false.
 Proof.
-  intros n. unfold sillyfun. 
-  destruct (beq_nat n 3).
-    Case "beq_nat n 3 = true". reflexivity.
-    Case "beq_nat n 3 = false". destruct (beq_nat n 5).
-      SCase "beq_nat n 5 = true". reflexivity.
-      SCase "beq_nat n 5 = false". reflexivity.  Qed.
+  move=> n. rewrite /sillyfun. 
+  case: (n == 3).
+  - by [].
+  case: (_ == _).
+  - by [].
+  by [].
+Qed.
 
 (** After unfolding [sillyfun] in the above proof, we find that
-    we are stuck on [if (beq_nat n 3) then ... else ...].  Well,
-    either [n] is equal to [3] or it isn't, so we use [destruct
-    (beq_nat n 3)] to let us reason about the two cases. 
+    we are stuck on [if n == 3 is true then ... else ...].  Well,
+    either [n] is equal to [3] or it isn't, so we use [case:
+    n == 3] to let us reason about the two cases. 
 
-    In general, the [destruct] tactic can be used to perform case
+    [case] actually supports giving a pattern, like in the second 
+    [case: (_ == _)].  Coq will find that we actually mean [case: (n == 5)].
+
+    In general, the [case] tactic can be used to perform case
     analysis of the results of arbitrary computations.  If [e] is an
     expression whose type is some inductively defined type [T], then,
-    for each constructor [c] of [T], [destruct e] generates a subgoal
-    in which all occurrences of [e] (in the goal and in the context)
-    are replaced by [c].
+    for each constructor [c] of [T], [case: e] generates a subgoal
+    in which all occurrences of [e] in the goal
+    are replaced by [c]. *)
 
-*)
+
 
 (** **** Exercise: 1 star (override_shadow) *)
 Theorem override_shadow : forall (X:Type) x1 x2 k1 k2 (f : nat->X),
@@ -902,21 +906,21 @@ Proof.
 (** **** Exercise: 3 stars, optional (combine_split) *)
 (** Complete the proof below *)
 
-Theorem combine_split : forall X Y (l : list (X * Y)) l1 l2,
+Theorem zip_split : forall X Y (l : list (X * Y)) l1 l2,
   split l = (l1, l2) ->
-  combine l1 l2 = l.
+  zip l1 l2 = l.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** Sometimes, doing a [destruct] on a compound expression (a
-    non-variable) will erase information we need to complete a proof. *)
+(** Sometimes, doing a [case:] will erase information we need to
+    complete a proof. *)
 (** For example, suppose
     we define a function [sillyfun1] like this: *)
 
 Definition sillyfun1 (n : nat) : bool :=
-  if beq_nat n 3 then true
-  else if beq_nat n 5 then true
+  if n == 3 is true then true
+  else if n == 5 is true then true
   else false.
 
 (** And suppose that we want to convince Coq of the rather
@@ -925,57 +929,57 @@ Definition sillyfun1 (n : nat) : bool :=
     it is natural to start the proof like this: *)
 
 Theorem sillyfun1_odd_FAILED : forall (n : nat),
-     sillyfun1 n = true ->
-     oddb n = true.
+     sillyfun1 n ->
+     oddb n.
 Proof.
-  intros n eq. unfold sillyfun1 in eq.
-  destruct (beq_nat n 3).
+  move=>n. rewrite /sillyfun1.
+  case: (n == 3).
   (* stuck... *)
 Abort.
 
-(** We get stuck at this point because the context does not
-    contain enough information to prove the goal!  The problem is that
-    the substitution peformed by [destruct] is too brutal -- it threw
-    away every occurrence of [beq_nat n 3], but we need to keep some
-    memory of this expression and how it was destructed, because we
-    need to be able to reason that since, in this branch of the case
-    analysis, [beq_nat n 3 = true], it must be that [n = 3], from
-    which it follows that [n] is odd.
+(** We get stuck at this point because the context does not contain
+    enough information to prove the goal!  The problem is that [case]
+    performed the substitution on the goal, and leave no trace of [n
+    == 3 = true].  We need to keep some memory of this expression and
+    how it was destructed, because we need to be able to reason that
+    since, in this branch of the case analysis, [n == 3 = true],
+    it must be that [n = 3], from which it follows that [n] is odd.
 
     What we would really like is to substitute away all existing
-    occurences of [beq_nat n 3], but at the same time add an equation
-    to the context that records which case we are in.  The [eqn:]
-    qualifier allows us to introduce such an equation (with whatever
-    name we choose). *)
+    occurences of [n == 3], but at the same time add an equation to
+    the context that records which case we are in.  We can do this by
+    naming the case (with whatever name we choose). *)
 
 Theorem sillyfun1_odd : forall (n : nat),
      sillyfun1 n = true ->
      oddb n = true.
 Proof.
-  intros n eq. unfold sillyfun1 in eq.
-  destruct (beq_nat n 3) eqn:Heqe3.
+  move=> n. rewrite /sillyfun1.
+  case neq3: (n == 3).
   (* Now we have the same state as at the point where we got stuck
     above, except that the context contains an extra equality
     assumption, which is exactly what we need to make progress. *)
-    Case "e3 = true". apply beq_nat_true in Heqe3.
-      rewrite -> Heqe3. reflexivity.
-    Case "e3 = false".
-     (* When we come to the second equality test in the body of the
-       function we are reasoning about, we can use [eqn:] again in the
-       same way, allow us to finish the proof. *)
-      destruct (beq_nat n 5) eqn:Heqe5. 
-        SCase "e5 = true".
-          apply beq_nat_true in Heqe5.
-          rewrite -> Heqe5. reflexivity.
-        SCase "e5 = false". inversion eq.  Qed.
+    - move: (eqnP_r _ _ neq3).
+      move=>->.
+      by [].
+  (* When we come to the second equality test in the body of the
+     function we are reasoning about, we can use [case:] again in the
+     same way, allow us to finish the proof. *)
+    case neq5: (n == 5). 
+    - move: (eqnP_r _ _ neq5).
+      move=>->.
+      by [].
+    by [].
+Qed.
 
 
-(** **** Exercise: 2 stars (destruct_eqn_practice) *)
+(** **** Exercise: 2 stars (case_practice) *)
 Theorem bool_fn_applied_thrice : 
   forall (f : bool -> bool) (b : bool), 
   f (f (f b)) = f b.
 Proof.
   (* FILL IN HERE *) Admitted.
+
 (** [] *)
 
 (** **** Exercise: 2 stars (override_same) *)
@@ -986,122 +990,105 @@ Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
+
 (* ################################################################## *)
 (** * Review *)
 
-(** We've now seen a bunch of Coq's fundamental tactics.  We'll
-    introduce a few more as we go along through the coming lectures,
-    and later in the course we'll introduce some more powerful
-    _automation_ tactics that make Coq do more of the low-level work
-    in many cases.  But basically we've got what we need to get work
-    done.
+(** We've now seen a bunch of Coq's fundamental tactics and tacticas.
+    We'll introduce a few more as we go along through the coming
+    lectures, and later in the course we'll introduce some more
+    powerful _automation_ tactics that make Coq do more of the
+    low-level work in many cases.  But basically we've got what we
+    need to get work done.
 
     Here are the ones we've seen:
 
-      - [intros]: 
+      - [=>]: 
         move hypotheses/variables from goal to context 
 
-      - [reflexivity]:
-        finish the proof (when the goal looks like [e = e])
+      - [:]:
+        move hypotheses/variables/complex compounds from the context
+        to the goal.
 
-      - [apply]:
+      - [by]:
+        finish the proof when
+        + it is an equality [e = e],
+        + it is equal to some hypothesis,
+        + there is a contradiction in the hypothesis (like [false = true]).
+
+      - [in H1 .. Hn *]: 
+        apply a tactic but first push H1 .. Hn in the context, and the pops
+        them back.
+
+      - [apply:]:
         prove goal using a hypothesis, lemma, or constructor
 
-      - [apply... in H]: 
-        apply a hypothesis, lemma, or constructor to a hypothesis in
-        the context (forward reasoning)
-
-      - [apply... with...]:
-        explicitly specify values for variables that cannot be
-        determined by pattern matching
-
-      - [simpl]:
-        simplify computations in the goal 
-
-      - [simpl in H]:
-        ... or a hypothesis 
+      - [/=]:
+        when used within [=>] or [rewrite], simplifies computations in the goal.
 
       - [rewrite]:
-        use an equality hypothesis (or lemma) to rewrite the goal 
-
-      - [rewrite ... in H]:
-        ... or a hypothesis 
+        use an equality hypothesis (or lemma) to rewrite the goal. 
 
       - [symmetry]:
-        changes a goal of the form [t=u] into [u=t]
+        changes a goal of the form [t=u] into [u=t].
 
-      - [symmetry in H]:
-        changes a hypothesis of the form [t=u] into [u=t]
+      - [rewrite /D]:
+        replace a defined constant [D] by its right-hand side.
 
-      - [unfold]:
-        replace a defined constant by its right-hand side in the goal 
+      - [case H: e]: 
+        case analysis on values of inductively defined
+        types, and optionally stores equality [e = constructor args] if [H] is
+        specified.
 
-      - [unfold... in H]:
-        ... or a hypothesis  
+      - [case H: e] when [e] has type [c a1 ... an = c b1 ... bn]:
+        for [c] a constructor of some inductive type, it equates each [ai = bi].
 
-      - [destruct... as...]:
-        case analysis on values of inductively defined types 
+      - [elim:]:
+        induction on values of inductively defined types.
 
-      - [destruct... eqn:...]:
-        specify the name of an equation to be added to the context,
-        recording the result of the case analysis
-
-      - [induction... as...]:
-        induction on values of inductively defined types 
-
-      - [inversion]:
-        reason by injectivity and distinctness of constructors
-
-      - [assert (e) as H]:
-        introduce a "local lemma" [e] and call it [H] 
-
-      - [generalize dependent x]:
-        move the variable [x] (and anything else that depends on it)
-        from the context back to an explicit hypothesis in the goal
-        formula 
+      - [have H: e]:
+        introduce a "local lemma" [e] and (optionally) call it [H].
 *)
 
 (* ###################################################### *)
 (** * Additional Exercises *)
 
-(** **** Exercise: 3 stars (beq_nat_sym) *)
-Theorem beq_nat_sym : forall (n m : nat),
-  beq_nat n m = beq_nat m n.
+(** **** Exercise: 3 stars (eqnC) *)
+Theorem eqnC : forall (n m : nat),
+  n == m = (m == n).
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 3 stars, advanced, optional (beq_nat_sym_informal) *)
+(** **** Exercise: 3 stars, advanced, optional (eqnC_informal) *)
 (** Give an informal proof of this lemma that corresponds to your
     formal proof above:
 
-   Theorem: For any [nat]s [n] [m], [beq_nat n m = beq_nat m n].
+   Theorem: For any [nat]s [n] [m], [n == m = m == n].
 
    Proof:
    (* FILL IN HERE *)
 []
  *)
 
-(** **** Exercise: 3 stars, optional (beq_nat_trans) *)
-Theorem beq_nat_trans : forall n m p,
-  beq_nat n m = true ->
-  beq_nat m p = true ->
-  beq_nat n p = true.
+(** **** Exercise: 3 stars, optional (eqn_trans) *)
+Theorem eqn : forall n m p,
+  n == m -> m == p -> n == p.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 3 stars, advanced (split_combine) *)
-(** We have just proven that for all lists of pairs, [combine] is the
+(** **** Exercise: 3 stars, advanced (split_zip) *)
+(** We have just proven that for all lists of pairs, [zip] is the
     inverse of [split].  How would you formalize the statement that
-    [split] is the inverse of [combine]?
+    [split] is the inverse of [zip]?
 
-    Complete the definition of [split_combine_statement] below with a
+    Complete the definition of [split_zip_statement] below with a
     property that states that [split] is the inverse of
-    [combine]. Then, prove that the property holds. (Be sure to leave
-    your induction hypothesis general by not doing [intros] on more
+    [zip]. Then, prove that the property holds. (Be sure to leave
+    your induction hypothesis general by not doing [move] on more
     things than necessary.  Hint: what property do you need of [l1]
-    and [l2] for [split] [combine l1 l2 = (l1,l2)] to be true?)  *)
+    and [l2] for [split] [zip l1 l2 = (l1,l2)] to be true?)  *)
 
 Definition split_combine_statement : Prop :=
 (* FILL IN HERE *) admit.
@@ -1115,7 +1102,7 @@ Proof.
 
 (** **** Exercise: 3 stars (override_permute) *)
 Theorem override_permute : forall (X:Type) x1 x2 k1 k2 k3 (f : nat->X),
-  beq_nat k2 k1 = false ->
+  k2 == k1 = false ->
   (override (override f k2 x2) k1 x1) k3 = (override (override f k1 x1) k2 x2) k3.
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -1136,28 +1123,29 @@ Proof.
 (** Define two recursive [Fixpoints], [forallb] and [existsb].  The
     first checks whether every element in a list satisfies a given
     predicate:
-      forallb oddb [1;3;5;7;9] = true
+      forallb oddb [:: 1;3;5;7;9] = true
 
-      forallb negb [false;false] = true
+      forallb negb [:: false;false] = true
   
-      forallb evenb [0;2;4;5] = false
+      forallb evenb [:: 0;2;4;5] = false
   
-      forallb (beq_nat 5) [] = true
+      forallb (eqn 5) [::] = true
+
     The second checks whether there exists an element in the list that
     satisfies a given predicate:
-      existsb (beq_nat 5) [0;2;3;6] = false
+      existsb (eqn 5) [:: 0;2;3;6] = false
  
-      existsb (andb true) [true;true;false] = true
+      existsb (andb true) [:: true;true;false] = true
  
-      existsb oddb [1;0;0;0;0;3] = true
+      existsb oddb [:: 1;0;0;0;0;3] = true
  
-      existsb evenb [] = false
+      existsb evenb [::] = false
+
     Next, define a _nonrecursive_ version of [existsb] -- call it
     [existsb'] -- using [forallb] and [negb].
  
     Prove that [existsb'] and [existsb] have the same behavior.
 *)
-
 (* FILL IN HERE *)
 (** [] *)
 
