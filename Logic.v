@@ -126,7 +126,7 @@ Theorem and_assoc : forall P Q R : Prop,
   P /\ (Q /\ R) -> (P /\ Q) /\ R.
 Proof.
   move=> P Q R.
-  case=> [HP [HQ HR]].
+  case=> HP [HQ HR].
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -162,26 +162,21 @@ Notation "P <-> Q" := (iff P Q)
                       : type_scope.
 
 
-
- HASTA ACA
-
 Theorem iff_implies : forall P Q : Prop, 
   (P <-> Q) -> P -> Q.
 Proof.  
-  intros P Q H. 
-  inversion H as [HAB HBA]. apply HAB.  Qed.
+  move=> P Q. 
+  case=>HAB _. 
+  by apply: HAB.
+Qed.
+
+(** **** Exercise: 1 star, optional (iff_properties) *)
 
 Theorem iff_sym : forall P Q : Prop, 
   (P <-> Q) -> (Q <-> P).
 Proof.
-  (* WORKED IN CLASS *)
-  intros P Q H. 
-  inversion H as [HAB HBA].
-  split.
-    Case "->". apply HBA.
-    Case "<-". apply HAB.  Qed.
+  (* FILL IN HERE *) Admitted.
 
-(** **** Exercise: 1 star, optional (iff_properties) *)
 (** Using the above proof that [<->] is symmetric ([iff_sym]) as
     a guide, prove that it is also reflexive and transitive. *)
 
@@ -196,7 +191,7 @@ Proof.
   (* FILL IN HERE *) Admitted.
 
 (** Hint: If you have an iff hypothesis in the context, you can use
-    [inversion] to break it into two separate implications.  (Think
+    [case] to break it into two separate implications.  (Think
     about why this works.) *)
 (** [] *)
 
@@ -206,6 +201,9 @@ Proof.
     avoiding the need for some low-level manipulation when reasoning
     with them.  In particular, [rewrite] can be used with [iff]
     statements, not just equalities. *)
+
+
+HASTA ACA
 
 (* ############################################################ *)
 (** * Disjunction *)
