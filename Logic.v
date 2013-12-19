@@ -1,6 +1,6 @@
 (** * Logic: Logic in Coq *)
 
-Require Export MoreProp. 
+Require Export "Prop".   (* Prop is a reserved keyword! *)
 
 (** Coq's built-in logic is very small: the only primitives are
     [Inductive] definitions, universal quantification ([forall]), and
@@ -67,21 +67,28 @@ Check conj.
 Theorem and_example : 
   (beautiful 0) /\ (beautiful 3).
 Proof.
-  apply conj.
-  Case "left". apply b_0.
-  Case "right". apply b_3.  Qed.
+  apply: conj.
+  - by apply: b_0. (* "left" case *)
+  by apply: b_3.   (* "right" case *)
+Qed.
 
 (** Just for convenience, we can use the tactic [split] as a shorthand for
-    [apply conj]. *)
+    [apply: conj]. *)
 
 Theorem and_example' : 
   (ev 0) /\ (ev 4).
 Proof.
   split.
-    Case "left". apply ev_0.
-    Case "right". apply ev_SS. apply ev_SS. apply ev_0.  Qed.
+  - by apply: ev_0.
+  do 2!apply: ev_SS.
+  by apply: ev_0.
+Qed.
 
-(** Conversely, the [inversion] tactic can be used to take a
+(** Little disgresion: Note the use of the [do] tactical.  It allows
+    reiterative execution of a tactic.  In this case, it executes
+    *exactly* two times the [apply:] tactic with [ev_SS]. *)
+
+(** Coming back to [conj], the [case:] tactic can be used to take a
     conjunction hypothesis in the context, calculate what evidence
     must have been used to build it, and add variables representing
     this evidence to the proof context. *)
@@ -89,9 +96,11 @@ Proof.
 Theorem proj1 : forall P Q : Prop, 
   P /\ Q -> P.
 Proof.
-  intros P Q H.
-  inversion H as [HP HQ]. 
-  apply HP.  Qed.
+  move=> P Q.
+  case.
+  move=>HP HQ.
+  by apply: HP.  
+Qed.
 
 (** **** Exercise: 1 star, optional (proj2) *)
 Theorem proj2 : forall P Q : Prop, 
@@ -100,27 +109,24 @@ Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-Theorem and_commut : forall P Q : Prop, 
+
+(** **** Exercise: 1 star, (andC) *)
+Theorem andC : forall P Q : Prop, 
   P /\ Q -> Q /\ P.
 Proof.
-  (* WORKED IN CLASS *)
-  intros P Q H.
-  inversion H as [HP HQ]. 
-  split.  
-    Case "left". apply HQ. 
-    Case "right". apply HP.  Qed.
-  
+  (* FILL IN HERE *) Admitted.
+(** [] *)
 
-(** **** Exercise: 2 stars (and_assoc) *)
+(** **** Exercise: 2 stars (andA) *)
 (** In the following proof, notice how the _nested pattern_ in the
-    [inversion] breaks the hypothesis [H : P /\ (Q /\ R)] down into
+    [case] breaks the hypothesis [H : P /\ (Q /\ R)] down into
     [HP: P], [HQ : Q], and [HR : R].  Finish the proof from there: *)
 
 Theorem and_assoc : forall P Q R : Prop, 
   P /\ (Q /\ R) -> (P /\ Q) /\ R.
 Proof.
-  intros P Q R H.
-  inversion H as [HP [HQ HR]].
+  move=> P Q R.
+  case=> [HP [HQ HR]].
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -135,7 +141,7 @@ Proof.
    stuck.) *)
 
 Theorem even__ev : forall n : nat,
-  (even n -> ev n) /\ (even (S n) -> ev (S n)).
+  (evenb n -> ev n) /\ (evenb (S n) -> ev (S n)).
 Proof.
   (* Hint: Use induction on [n]. *)
   (* FILL IN HERE *) Admitted.
@@ -154,6 +160,10 @@ Definition iff (P Q : Prop) := (P -> Q) /\ (Q -> P).
 Notation "P <-> Q" := (iff P Q) 
                       (at level 95, no associativity) 
                       : type_scope.
+
+
+
+ HASTA ACA
 
 Theorem iff_implies : forall P Q : Prop, 
   (P <-> Q) -> P -> Q.

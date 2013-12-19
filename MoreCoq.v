@@ -495,6 +495,21 @@ Theorem extremely_silly2 : forall n : nat,
 Proof. by []. Qed.
 
 
+(** We define further more notation for the rest of the operators and booleans. *)
+
+Notation "x <= y" := (leq x y)
+  (at level 70, no associativity).
+Notation "x < y" := (S x <= y)
+  (at level 70, no associativity).
+Notation "m >= n" := (n <= m) (only parsing).
+Notation "m > n"  := (n < m) (only parsing).
+
+Infix "||" := orb.
+Infix "&&" := andb.
+Notation "~~ b" := (negb b) (at level 35, right associativity).
+
+
+
 
 (* ###################################################### *)
 (** * Backward vs. forward reasoning *)

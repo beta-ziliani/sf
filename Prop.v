@@ -1,7 +1,6 @@
 (** * Prop: Propositions and Evidence *)
 
 Require Import ssreflect.
-Require Import Induction.
 Require Export MoreCoq.
 
 (** In previous chapters, we have seen many examples of factual
@@ -430,6 +429,246 @@ Qed.
 (** [] *)
 
 
+
+(* ####################################################### *)
+(** * Additional Exercises *)
+
+(** **** Exercise: 4 stars (palindromes) *)
+(** A palindrome is a sequence that reads the same backwards as
+    forwards.
+
+    - Define an inductive proposition [pal] on [list X] that
+      captures what it means to be a palindrome. (Hint: You'll need
+      three cases.  Your definition should be based on the structure
+      of the list; just having a single constructor
+    c : forall l, l = rev l -> pal l
+      may seem obvious, but will not work very well.)
+ 
+    - Prove that 
+       forall l, pal (l ++ rev l).
+*)
+
+(* FILL IN HERE *)
+(** [] *)
+
+
+(** **** Exercise: 2 stars, optional (R_provability) *)
+(** Suppose we give Coq the following definition:
+    Inductive R : nat -> list nat -> Prop :=
+      | c1 : R 0 [::]
+      | c2 : forall n l, R n l -> R (S n) (n :: l)
+      | c3 : forall n l, R (S n) l -> R n l.
+    Which of the following propositions are provable?
+
+    - [R 2 [:: 1; 0]]
+    - [R 1 [:: 1; 2; 1; 0]]
+    - [R 6 [: 3; 2; 1; 0]]
+*)
+
+(** [] *)
+
+
+
+
+
+
+(* ##################################################### *)
+(** * Programming with Propositions *)
+
+(** A _proposition_ is a statement expressing a factual claim,
+    like "two plus two equals four."  In Coq, propositions are written
+    as expressions of type [Prop].  Although we haven't discussed this
+    explicitly, we have already seen numerous examples. *)
+
+Check (2 + 2 = 4).
+(* ===> 2 + 2 = 4 : Prop *)
+
+Check (3 == 2 = false).
+(* ===> (3 == 2) = false : Prop *)
+
+Check (beautiful 8).
+(* ===> beautiful 8 : Prop *)
+
+(** Both provable and unprovable claims are perfectly good
+    propositions.  Simply _being_ a proposition is one thing; being
+    _provable_ is something else! *)
+
+Check (2 + 2 = 5).
+(* ===> 2 + 2 = 5 : Prop *)
+
+Check (beautiful 4).
+(* ===> beautiful 4 : Prop *)
+
+(** Both [2 + 2 = 4] and [2 + 2 = 5] are legal expressions
+    of type [Prop]. *)
+
+(** We've mainly seen one place that propositions can appear in Coq: in
+    [Theorem] (and [Lemma] and [Example]) declarations. *)
+
+Theorem plus_2_2_is_4 : 
+  2 + 2 = 4.
+Proof. by [].  Qed.
+
+(** But they can be used in many other ways.  For example, we have also seen that
+    we can give a name to a proposition using a [Definition], just as we have
+    given names to expressions of other sorts. *)
+
+Definition plus_fact : Prop  :=  2 + 2 = 4.
+Check plus_fact.
+(* ===> plus_fact : Prop *)
+
+(** We can later use this name in any situation where a proposition is
+    expected -- for example, as the claim in a [Theorem] declaration. *)
+
+Theorem plus_fact_is_true : 
+  plus_fact.
+Proof. by [].  Qed.
+
+(** We've seen several ways of constructing propositions.  
+
+       - We can define a new proposition primitively using [Inductive].
+
+       - Given two expressions [e1] and [e2] of the same type, we can
+         form the proposition [e1 = e2], which states that their
+         values are equal.
+
+       - We can combine propositions using implication and
+         quantification. *)
+
+(** We have also seen _parameterized propositions_, such as [beautiful]. *)
+
+Check (beautiful 4).
+(* ===> beautiful 4 : Prop *)
+Check (beautiful 8).
+(* ===> beautiful 8 : Prop *)
+Check beautiful. 
+(* ===> beautiful : nat -> Prop *)
+
+(** The type of [beautiful], i.e., [nat->Prop], can be pronounced in
+    three equivalent ways: (1) "[beautiful] is a _function_ from numbers to
+    propositions," (2) "[beautiful] is a _family_ of propositions, indexed
+    by a number [n]," or (3) "[beautiful] is a _property_ of numbers."  *)
+
+(** Propositions -- including parameterized propositions -- are
+    first-class citizens in Coq.  For example, we can define functions
+    from numbers to propositions... *)
+
+Definition between (n m o: nat) : Prop :=
+  (n <= o) && (o <= m).
+
+(** ... and then partially apply them: *)
+
+Definition teen : nat->Prop := between 13 19.
+
+(** We can even pass propositions -- including parameterized
+    propositions -- as arguments to functions: *)
+
+Definition true_for_zero (P:nat->Prop) : Prop :=
+  P 0.
+
+(** Here are two more examples of passing parameterized propositions
+    as arguments to a function.  
+
+    The first function, [true_for_all_numbers], takes a proposition
+    [P] as argument and builds the proposition that [P] is true for
+    all natural numbers. *)
+
+Definition true_for_all_numbers (P:nat->Prop) : Prop :=
+  forall n, P n.
+
+(** The second, [preserved_by_S], takes [P] and builds the proposition
+    that, if [P] is true for some natural number [n'], then it is also
+    true by the successor of [n'] -- i.e. that [P] is _preserved by
+    successor_: *)
+
+Definition preserved_by_S (P:nat->Prop) : Prop :=
+  forall n', P n' -> P (S n').
+
+(** Finally, we can put these ingredients together to define
+a proposition stating that induction is valid for natural numbers: *)
+
+Definition natural_number_induction_valid : Prop :=
+  forall (P:nat->Prop),
+    true_for_zero P ->
+    preserved_by_S P -> 
+    true_for_all_numbers P. 
+
+
+
+(** **** Exercise: 3 stars (combine_odd_even) *)
+(** Complete the definition of the [combine_odd_even] function
+    below. It takes as arguments two properties of numbers [Podd] and
+    [Peven]. As its result, it should return a new property [P] such
+    that [P n] is equivalent to [Podd n] when [n] is odd, and
+    equivalent to [Peven n] otherwise. *)
+
+Definition combine_odd_even (Podd Peven : nat -> Prop) : nat -> Prop :=
+  (* FILL IN HERE *) admit.
+
+(** To test your definition, see whether you can prove the following
+    facts: *)
+
+Theorem combine_odd_even_intro : 
+  forall (Podd Peven : nat -> Prop) (n : nat),
+    (oddb n = true -> Podd n) ->
+    (oddb n = false -> Peven n) ->
+    combine_odd_even Podd Peven n.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem combine_odd_even_elim_odd :
+  forall (Podd Peven : nat -> Prop) (n : nat),
+    combine_odd_even Podd Peven n ->
+    oddb n = true ->
+    Podd n.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem combine_odd_even_elim_even :
+  forall (Podd Peven : nat -> Prop) (n : nat),
+    combine_odd_even Podd Peven n ->
+    oddb n = false ->
+    Peven n.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+(** [] *)
+
+(* ##################################################### *)
+(** One more quick digression, for adventurous souls: if we can define
+    parameterized propositions using [Definition], then can we also
+    define them using [Fixpoint]?  Of course we can!  However, this
+    kind of "recursive parameterization" doesn't correspond to
+    anything very familiar from everyday mathematics.  The following
+    exercise gives a slightly contrived example. *)
+
+(** **** Exercise: 4 stars, optional (true_upto_n__true_everywhere) *)
+(** Define a recursive function
+    [true_upto_n__true_everywhere] that makes
+    [true_upto_n_example] work. *)
+(*
+Fixpoint true_upto_n__true_everywhere n P :=
+(* FILL IN HERE *)
+
+Example true_upto_n_example :
+    (true_upto_n__true_everywhere 3 (fun n => evenb n))
+  = (evenb 3 -> evenb 2 -> evenb 1 -> forall m : nat, evenb m).
+Proof. by [].  Qed.
+*)
+(** [] *)
+
+
+
+
+
+
+
+
+
+
+
+
+
 (** Power of computation.   MOVE THIS TO MoreProp? *)
 
   
@@ -522,6 +761,8 @@ Proof.
 Theorem ev_ev__ev : forall n m,
   ev (n+m) -> ev n -> ev m.
 Proof.
+  move=>n m H.
+  
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -540,33 +781,24 @@ Proof.
 
 
 
-(* ####################################################### *)
-(** * Additional Exercises *)
-
-(** **** Exercise: 4 stars (palindromes) *)
-(** A palindrome is a sequence that reads the same backwards as
-    forwards.
-
-    - Define an inductive proposition [pal] on [list X] that
-      captures what it means to be a palindrome. (Hint: You'll need
-      three cases.  Your definition should be based on the structure
-      of the list; just having a single constructor
-    c : forall l, l = rev l -> pal l
-      may seem obvious, but will not work very well.)
- 
-    - Prove that 
-       forall l, pal (l ++ rev l).
-    - Prove that 
-       forall l, pal l -> l = rev l.
-*)
 
 
-(* FILL IN HERE *)
-(** [] *)
+
+
+
+
+
+
+
+
+
+
 
 (** **** Exercise: 5 stars, optional (palindrome_converse) *)
 (** Using your definition of [pal] from the previous exercise, prove
     that
+     forall l, pal l -> l = rev l.
+    and
      forall l, l = rev l -> pal l.
 *)
 
@@ -609,20 +841,6 @@ Proof.
 (** [] *)
 
 
-(** **** Exercise: 2 stars, optional (R_provability) *)
-(** Suppose we give Coq the following definition:
-    Inductive R : nat -> list nat -> Prop :=
-      | c1 : R 0 []
-      | c2 : forall n l, R n l -> R (S n) (n :: l)
-      | c3 : forall n l, R (S n) l -> R n l.
-    Which of the following propositions are provable?
-
-    - [R 2 [1,0]]
-    - [R 1 [1,2,1,0]]
-    - [R 6 [3,2,1,0]]
-*)
-
-(** [] *)
 
 
 (* $Date: 2013-07-01 18:48:47 -0400 (Mon, 01 Jul 2013) $ *)
