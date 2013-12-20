@@ -1,5 +1,6 @@
 (** * Logic: Logic in Coq *)
 
+Require Import ssreflect.
 Require Export "Prop".   (* Prop is a reserved keyword! *)
 
 (** Coq's built-in logic is very small: the only primitives are
@@ -203,8 +204,6 @@ Proof.
     statements, not just equalities. *)
 
 
-HASTA ACA
-
 (* ############################################################ *)
 (** * Disjunction *)
 
@@ -241,42 +240,48 @@ Check or_intror.
     - give evidence for [Q], tagged with the [or_intror]
       constructor. *)
 
-(** Since [P \/ Q] has two constructors, doing [inversion] on a
+(** Since [P \/ Q] has two constructors, doing [case] on a
     hypothesis of type [P \/ Q] yields two subgoals. *)
 
 Theorem or_commut : forall P Q : Prop,
   P \/ Q  -> Q \/ P.
 Proof.
-  intros P Q H.
-  inversion H as [HP | HQ].
-    Case "left". apply or_intror. apply HP.
-    Case "right". apply or_introl. apply HQ.  Qed.
+  move=> P Q.
+  case=> [HP | HQ].
+  - by apply: or_intror.   (* "left" case *)
+  by apply: or_introl.     (* "right" case *)
+Qed.
 
 (** From here on, we'll use the shorthand tactics [left] and [right]
-    in place of [apply or_introl] and [apply or_intror]. *)
+    in place of [apply: or_introl] and [apply: or_intror]. *)
 
 Theorem or_commut' : forall P Q : Prop,
   P \/ Q  -> Q \/ P.
 Proof.
-  intros P Q H.
-  inversion H as [HP | HQ].
-    Case "left". right. apply HP.
-    Case "right". left. apply HQ.  Qed.
+  move=> P Q.
+  case=> [HP | HQ].
+  - by right.
+  by left.
+Qed.
 
 
+(** It is boring to always have to pop the variables to the context.
+    We can avoid this by defining the variables on the left of the
+    [:], like we do with the arguments of the fixpoint. *)
 
 
-
-Theorem or_distributes_over_and_1 : forall P Q R : Prop,
+Theorem or_distributes_over_and_1  (P Q R : Prop) :
   P \/ (Q /\ R) -> (P \/ Q) /\ (P \/ R).
 Proof. 
-  intros P Q R. intros H. inversion H as [HP | [HQ HR]]. 
-    Case "left". split.
-      SCase "left". left. apply HP.
-      SCase "right". left. apply HP.
-    Case "right". split.
-      SCase "left". right. apply HQ.
-      SCase "right". right. apply HR.  Qed.
+  case=> [HP | [HQ HR]]. 
+  - split.
+    + by left.
+    by left.
+  split.
+  - by right.
+  by right.
+Qed.
+
 
 (** **** Exercise: 2 stars (or_distributes_over_and_2) *)
 Theorem or_distributes_over_and_2 : forall P Q R : Prop,
@@ -293,49 +298,61 @@ Proof.
 (** [] *)
 
 (* ################################################### *)
-(** ** Relating [/\] and [\/] with [andb] and [orb] (advanced) *)
+(** ** Relating [/\] and [\/] with [&&] and [||] (advanced) *)
 
 (** We've already seen several places where analogous structures
     can be found in Coq's computational ([Type]) and logical ([Prop])
-    worlds.  Here is one more: the boolean operators [andb] and [orb]
+    worlds.  Here is one more: the boolean operators [&&] and [||]
     are clearly analogs of the logical connectives [/\] and [\/].
     This analogy can be made more precise by the following theorems,
-    which show how to translate knowledge about [andb] and [orb]'s
+    which show how to translate knowledge about [&&] and [||]'s
     behaviors on certain inputs into propositional facts about those
     inputs. *)
 
-Theorem andb_prop : forall b c,
-  andb b c = true -> b = true /\ c = true.
+Theorem andb_prop : forall b c, 
+  b && c -> b /\ c.
 Proof.
   (* WORKED IN CLASS *)
-  intros b c H.
-  destruct b.
-    Case "b = true". destruct c.
-      SCase "c = true". apply conj. reflexivity. reflexivity.
-      SCase "c = false". inversion H.
-    Case "b = false". inversion H.  Qed.
+  case=> c /=.
+  - move=> Pc. 
+    by split.
+  by [].
+Qed.
 
-Theorem andb_true_intro : forall b c,
-  b = true /\ c = true -> andb b c = true.
+Theorem andb_true_intro b c :
+  b = true /\ c = true -> b && c.
 Proof.
   (* WORKED IN CLASS *)
-  intros b c H.
-  inversion H.
-  rewrite H0. rewrite H1. reflexivity. Qed.
+  case.
+  move=>->.
+  move=>->.
+  by [].
+Qed.
+
+(** **** Exercise: 2 stars (coercions) *)
+(** In the previous example we explicitely say [b = true /\ c = true]
+    to make sure that [b] and [c] are considered [bool]eans, and not
+    [Prop]s.  What happens if we say simply [b /\ c]?  Is there
+    another way of stating the theorem such that [b /\ c] gets
+    interpreted by Coq as [b = true /\ c = true] by the [is_true]
+    coercion?  *)
+
+
+
 
 (** **** Exercise: 2 stars, optional (bool_prop) *)
 Theorem andb_false : forall b c,
-  andb b c = false -> b = false \/ c = false.
+  b && c = false -> b = false \/ c = false.
 Proof. 
   (* FILL IN HERE *) Admitted.
 
 Theorem orb_prop : forall b c,
-  orb b c = true -> b = true \/ c = true.
+  b || c -> b = true \/ c = true.
 Proof.
   (* FILL IN HERE *) Admitted.
 
 Theorem orb_false_elim : forall b c,
-  orb b c = false -> b = false /\ c = false.
+  b || c = false -> b = false /\ c = false.
 Proof. 
   (* FILL IN HERE *) Admitted.
 (** [] *)
@@ -354,20 +371,39 @@ Inductive False : Prop := .
     to give evidence. *)
 
 
-(** Since [False] has no constructors, inverting an assumption
-    of type [False] always yields zero subgoals, allowing us to
-    immediately prove any goal. *)
+(** Since [False] has no constructors, casing an assumption of type
+    [False] always yields zero subgoals, allowing us to immediately
+    prove any goal. *)
 
 Theorem False_implies_nonsense :
   False -> 2 + 2 = 5.
 Proof. 
-  intros contra.
-  inversion contra.  Qed. 
+  by case.
+Qed.
 
-(** How does this work? The [inversion] tactic breaks [contra] into
-    each of its possible cases, and yields a subgoal for each case.
-    As [contra] is evidence for [False], it has _no_ possible cases,
-    hence, there are no possible subgoals and the proof is done. *)
+(** How does this work? The [case] tactic cases the top assumption
+    into each of its possible cases, and yields a subgoal for each
+    case.  As the top assumption in this case is evidence for [False],
+    it has _no_ possible cases, hence, there are no possible subgoals
+    and the proof is done. *)
+
+
+(** Actually, since the proof of [False_implies_nonsense]
+    doesn't actually have anything to do with the specific nonsensical
+    thing being proved; it can easily be generalized to work for an
+    arbitrary [P]: *)
+
+Theorem ex_falso_quodlibet (P:Prop) :
+  False -> P.
+Proof.
+  (* WORKED IN CLASS *)
+  by case.
+Qed.
+
+(** The Latin _ex falso quodlibet_ means, literally, "from
+    falsehood follows whatever you please."  This theorem is also
+    known as the _principle of explosion_. *)
+
 
 (** Conversely, the only way to prove [False] is if there is already
     something nonsensical or contradictory in the context: *)
@@ -375,27 +411,15 @@ Proof.
 Theorem nonsense_implies_False :
   2 + 2 = 5 -> False.
 Proof.
-  intros contra.
-  inversion contra.  Qed.
+  by [].
+Qed.
 
-(** Actually, since the proof of [False_implies_nonsense]
-    doesn't actually have anything to do with the specific nonsensical
-    thing being proved; it can easily be generalized to work for an
-    arbitrary [P]: *)
-
-Theorem ex_falso_quodlibet : forall (P:Prop),
-  False -> P.
-Proof.
-  (* WORKED IN CLASS *)
-  intros P contra.
-  inversion contra.  Qed.
-
-(** The Latin _ex falso quodlibet_ means, literally, "from
-    falsehood follows whatever you please."  This theorem is also
-    known as the _principle of explosion_. *)
+(** As we say in previous files, [by []] can detect a contradiction in
+    some hypothesis, and prove the goal *)
 
 
 (* #################################################### *)
+
 (** ** Truth *)
 
 (** Since we have defined falsehood in Coq, one might wonder whether
@@ -442,25 +466,34 @@ Check not.
 Theorem not_False : 
   ~ False.
 Proof.
-  unfold not. intros H. inversion H.  Qed.
+  rewrite /not.
+  by case.
+Qed.
 
-Theorem contradiction_implies_anything : forall P Q : Prop,
+Theorem contradiction_implies_anything (P Q : Prop) :
   (P /\ ~P) -> Q.
 Proof. 
   (* WORKED IN CLASS *)
-  intros P Q H. inversion H as [HP HNA]. unfold not in HNA. 
-  apply HNA in HP. inversion HP.  Qed.
+  case=> [HP HNA]. 
+  rewrite /not in HNA. 
+  move: (HNA HP).
+  by case.
+Qed.
 
-Theorem double_neg : forall P : Prop,
-  P -> ~~P.
+Theorem double_neg (P : Prop) :
+  P -> ~ ~ P.
 Proof.
   (* WORKED IN CLASS *)
-  intros P H. unfold not. intros G. apply G. apply H.  Qed.
+  rewrite /not.
+  move=>H G.
+  apply: G. 
+  by apply: H.
+Qed.
 
 (** **** Exercise: 2 stars, advanced (double_neg_inf) *)
 (** Write an informal proof of [double_neg]:
 
-   _Theorem_: [P] implies [~~P], for any proposition [P].
+   _Theorem_: [P] implies [~ ~P], for any proposition [P].
 
    _Proof_:
 (* FILL IN HERE *)
@@ -488,10 +521,15 @@ Proof.
 (* FILL IN HERE *)
 (** [] *)
 
+
+HASTA ACA
+
 Theorem five_not_even :  
   ~ ev 5.
 Proof. 
   (* WORKED IN CLASS *)
+  rewrite /not.
+  move=>H.
   unfold not. intros Hev5. inversion Hev5 as [|n Hev3 Heqn]. 
   inversion Hev3 as [|n' Hev1 Heqn']. inversion Hev1.  Qed.
 
