@@ -168,3 +168,24 @@ Proof.
 
 (* FILL IN HERE *)
 (** [] *)
+
+
+Theorem five_not_even :  
+  ~ ev 5.
+Proof. 
+  (* WORKED IN CLASS *)
+  rewrite /not.
+  move=>H.
+  unfold not. intros Hev5. inversion Hev5 as [|n Hev3 Heqn]. 
+  inversion Hev3 as [|n' Hev1 Heqn']. inversion Hev1.  Qed.
+
+(** **** Exercise: 1 star (ev_not_ev_S) *)
+(** Theorem [five_not_even] confirms the unsurprising fact that five
+    is not an even number.  Prove this more interesting fact: *)
+
+Theorem ev_not_ev_S : forall n,
+  ev n -> ~ ev (S n).
+Proof. 
+  unfold not. intros n H. induction H. (* not n! *)
+  (* FILL IN HERE *) Admitted.
+(** [] *)
