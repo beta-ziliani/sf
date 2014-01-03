@@ -597,6 +597,7 @@ Theorem plus_n_n_injective : forall n m,
      n + n = m + m ->
      n = m.
 Proof.
+  elim=> [| n' IH].
 (** Hint: [plus_Sn_m] may be of help. *)
     (* FILL IN HERE *) Admitted.
 (** [] *)
