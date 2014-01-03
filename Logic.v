@@ -414,8 +414,9 @@ Proof.
   by [].
 Qed.
 
-(** As we say in previous files, [by []] can detect a contradiction in
-    some hypothesis, and prove the goal *)
+(** As we mentioned in previous files, [by []] can detect a
+    contradiction in any hypothesis, and prove the goal by
+    contradiction. *)
 
 
 (* #################################################### *)
@@ -522,40 +523,19 @@ Proof.
 (** [] *)
 
 
-HASTA ACA
-
-Theorem five_not_even :  
-  ~ ev 5.
-Proof. 
-  (* WORKED IN CLASS *)
-  rewrite /not.
-  move=>H.
-  unfold not. intros Hev5. inversion Hev5 as [|n Hev3 Heqn]. 
-  inversion Hev3 as [|n' Hev1 Heqn']. inversion Hev1.  Qed.
-
-(** **** Exercise: 1 star (ev_not_ev_S) *)
-(** Theorem [five_not_even] confirms the unsurprising fact that five
-    is not an even number.  Prove this more interesting fact: *)
-
-Theorem ev_not_ev_S : forall n,
-  ev n -> ~ ev (S n).
-Proof. 
-  unfold not. intros n H. induction H. (* not n! *)
-  (* FILL IN HERE *) Admitted.
-(** [] *)
 
 (** Note that some theorems that are true in classical logic are _not_
     provable in Coq's (constructive) logic.  E.g., let's look at how
     this proof gets stuck... *)
 
 Theorem classic_double_neg : forall P : Prop,
-  ~~P -> P.
+  ~ ~P -> P.
 Proof.
   (* WORKED IN CLASS *)
-  intros P H. unfold not in H. 
-  (* But now what? There is no way to "invent" evidence for [~P] 
-     from evidence for [P]. *) 
-  Abort.
+  move=> P. rewrite {1}/not. move=> H. 
+  (* But now what? There is no way to "invent" evidence for [~P] from
+     evidence for [P].  (The {1} modifier tells Coq to unfold only the
+     first occurance of [not].) *) Abort.
 
 (** **** Exercise: 5 stars, advanced, optional (classical_axioms) *)
 (** For those who like a challenge, here is an exercise
@@ -570,7 +550,7 @@ Proof.
 Definition peirce := forall P Q: Prop, 
   ((P->Q)->P)->P.
 Definition classic := forall P:Prop, 
-  ~~P -> P.
+  ~ ~P -> P.
 Definition excluded_middle := forall P:Prop, 
   P \/ ~P.
 Definition de_morgan_not_and_not := forall P Q:Prop, 
@@ -600,36 +580,31 @@ Notation "x <> y" := (~ (x = y)) : type_scope.
 Theorem not_false_then_true : forall b : bool,
   b <> false -> b = true.
 Proof.
-  intros b H. destruct b.
-  Case "b = true". reflexivity.
-  Case "b = false".
-    unfold not in H.  
-    apply ex_falso_quodlibet.
-    apply H. reflexivity.   Qed.
+  case.
+  - by [].
+  rewrite /not. move=>H.  
+  apply: ex_falso_quodlibet.
+  apply: H. 
+  by [].
+Qed.
 
 
 
-(** **** Exercise: 2 stars (false_beq_nat) *)
-Theorem false_beq_nat : forall n m : nat,
+(** **** Exercise: 2 stars (false_eqn) *)
+Theorem false_eqn : forall n m : nat,
      n <> m ->
-     beq_nat n m = false.
+     n == m = false.
 Proof. 
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 2 stars, optional (beq_nat_false) *)
-Theorem beq_nat_false : forall n m,
-  beq_nat n m = false -> n <> m.
+(** **** Exercise: 2 stars, optional (eqn_false) *)
+Theorem eqn_false : forall n m,
+  n == m = false -> n <> m.
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 2 stars, optional (ble_nat_false) *)
-Theorem ble_nat_false : forall n m,
-  ble_nat n m = false -> ~(n <= m).
-Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
 
 
 
@@ -670,43 +645,44 @@ Notation "'exists' x : X , p" := (ex _ (fun x:X => p))
 
 (** We can use the usual set of tactics for
     manipulating existentials.  For example, to prove an
-    existential, we can [apply] the constructor [ex_intro].  Since the
+    existential, we can [apply:] the constructor [ex_intro].  Since the
     premise of [ex_intro] involves a variable ([witness]) that does
     not appear in its conclusion, we need to explicitly give its value
-    when we use [apply]. *)
+    when we use [apply:]. *)
 
 Example exists_example_1 : exists n, n + (n * n) = 6.
 Proof.
-  apply ex_intro with (witness:=2). 
-  reflexivity.  Qed.
+  apply: (ex_intro _ _ 2). 
+  by [].
+Qed.
 
 (** Note that we have to explicitly give the witness. *)
 
-(** Or, instead of writing [apply ex_intro with (witness:=e)] all the
+(** Or, instead of writing [apply: (ex_intro _ _e)] all the
     time, we can use the convenient shorthand [exists e], which means
     the same thing. *)
 
 Example exists_example_1' : exists n, n + (n * n) = 6.
 Proof.
   exists 2. 
-  reflexivity.  Qed.
+  by [].
+Qed.
 
 (** Conversely, if we have an existential hypothesis in the
-    context, we can eliminate it with [inversion].  Note the use
-    of the [as...] pattern to name the variable that Coq
+    context, we can eliminate it with [case].  Note the use
+    of the [=>...] pattern to name the variable that Coq
     introduces to name the witness value and get evidence that
-    the hypothesis holds for the witness.  (If we don't
-    explicitly choose one, Coq will just call it [witness], which
-    makes proofs confusing.) *)
+    the hypothesis holds for the witness. *)
   
 Theorem exists_example_2 : forall n,
   (exists m, n = 4 + m) ->
   (exists o, n = 2 + o).
 Proof.
-  intros n H.
-  inversion H as [m Hm]. 
+  move=>n.
+  case=> [m Hm]. 
   exists (2 + m).  
-  apply Hm.  Qed. 
+  by apply: Hm.  
+Qed. 
 
 (** **** Exercise: 1 star, optional (english_exists) *)
 (** In English, what does the proposition 
@@ -748,7 +724,6 @@ Proof.
    (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(* Print dist_exists_or. *)
 
 
 (* ###################################################### *)
@@ -804,169 +779,19 @@ Proof.
 
 Lemma four: 2 + 2 = 1 + 3. 
 Proof.
-  apply refl_equal. 
+  by apply: refl_equal. 
 Qed.
 
-(** The [reflexivity] tactic that we have used to prove equalities up
-to now is essentially just short-hand for [apply refl_equal]. *)
+(** The [by []] tactic that we have used to prove equalities up
+to now essentially used [apply: refl_equal]. *)
 
 End MyEquality.
-
-
-(* ###################################################### *)
-(** * Evidence-carrying booleans. *)
-
-(** So far we've seen two different forms of equality predicates:
-[eq], which produces a [Prop], and
-the type-specific forms, like [beq_nat], that produce [boolean]
-values.  The former are more convenient to reason about, but
-we've relied on the latter to let us use equality tests 
-in _computations_.  While it is straightforward to write lemmas
-(e.g. [beq_nat_true] and [beq_nat_false]) that connect the two forms,
-using these lemmas quickly gets tedious. 
-
-It turns out that we can get the benefits of both forms at once 
-by using a construct called [sumbool]. *)
-
-Inductive sumbool (A B : Prop) : Set :=
- | left : A -> sumbool A B 
- | right : B -> sumbool A B.
-
-Notation "{ A } + { B }" :=  (sumbool A B) : type_scope.
-
-(** Think of [sumbool] as being like the [boolean] type, but instead
-of its values being just [true] and [false], they carry _evidence_
-of truth or falsity. This means that when we [destruct] them, we
-are left with the relevant evidence as a hypothesis -- just as with [or].
-(In fact, the definition of [sumbool] is almost the same as for [or].
-The only difference is that values of [sumbool] are declared to be in
-[Set] rather than in [Prop]; this is a technical distinction 
-that allows us to compute with them.) *) 
-
-(** Here's how we can define a [sumbool] for equality on [nat]s *)
-
-Theorem eq_nat_dec : forall n m : nat, {n = m} + {n <> m}.
-Proof.
-  intros n.
-  induction n as [|n'].
-  Case "n = 0".
-    intros m.
-    destruct m as [|m'].
-    SCase "m = 0".
-      left. reflexivity.
-    SCase "m = S m'".
-      right. intros contra. inversion contra.
-  Case "n = S n'".
-    intros m.
-    destruct m as [|m'].
-    SCase "m = 0".
-      right. intros contra. inversion contra.
-    SCase "m = S m'". 
-      destruct IHn' with (m := m') as [eq | neq].
-      left. apply f_equal.  apply eq.
-      right. intros Heq. inversion Heq as [Heq']. apply neq. apply Heq'.
-Defined. 
-
-(** Read as a theorem, this says that equality on [nat]s is decidable:
-that is, given two [nat] values, we can always produce either 
-evidence that they are equal or evidence that they are not.
-Read computationally, [eq_nat_dec] takes two [nat] values and returns
-a [sumbool] constructed with [left] if they are equal and [right] 
-if they are not; this result can be tested with a [match] or, better,
-with an [if-then-else], just like a regular [boolean]. 
-(Notice that we ended this proof with [Defined] rather than [Qed]. 
-The only difference this makes is that the proof becomes _transparent_,
-meaning that its definition is available when Coq tries to do reductions,
-which is important for the computational interpretation.)
-
-Here's a simple example illustrating the advantages of the [sumbool] form. *)
-
-Definition override' {X: Type} (f: nat->X) (k:nat) (x:X) : nat->X:=
-  fun (k':nat) => if eq_nat_dec k k' then x else f k'.
-
-Theorem override_same' : forall (X:Type) x1 k1 k2 (f : nat->X),
-  f k1 = x1 -> 
-  (override' f k1 x1) k2 = f k2.
-Proof.
-  intros X x1 k1 k2 f. intros Hx1.
-  unfold override'.
-  destruct (eq_nat_dec k1 k2).   (* observe what appears as a hypothesis *)
-  Case "k1 = k2".
-    rewrite <- e.
-    symmetry. apply Hx1.
-  Case "k1 <> k2". 
-    reflexivity.  Qed.
-
-(** Compare this to the more laborious proof (in MoreCoq.v) for the 
-   version of [override] defined using [beq_nat], where we had to
-   use the auxiliary lemma [beq_nat_true] to convert a fact about booleans
-   to a Prop. *)
-
-
-(** **** Exercise: 1 star (override_shadow') *)
-Theorem override_shadow' : forall (X:Type) x1 x2 k1 k2 (f : nat->X),
-  (override' (override' f k1 x2) k1 x1) k2 = (override' f k1 x1) k2.
-Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
-(* ####################################################### *)
-(** ** Inversion, Again (Advanced) *)
-
-(** We've seen [inversion] used with both equality hypotheses and
-    hypotheses about inductively defined propositions.  Now that we've
-    seen that these are actually the same thing, we're in a position
-    to take a closer look at how [inversion] behaves...
-
-    In general, the [inversion] tactic
-
-    - takes a hypothesis [H] whose type [P] is inductively defined,
-      and
-
-    - for each constructor [C] in [P]'s definition,
-
-      - generates a new subgoal in which we assume [H] was
-        built with [C],
-
-      - adds the arguments (premises) of [C] to the context of
-        the subgoal as extra hypotheses,
-
-      - matches the conclusion (result type) of [C] against the
-        current goal and calculates a set of equalities that must
-        hold in order for [C] to be applicable,
-        
-      - adds these equalities to the context (and, for convenience,
-        rewrites them in the goal), and
-
-      - if the equalities are not satisfiable (e.g., they involve
-        things like [S n = O]), immediately solves the subgoal. *)
-
-(** _Example_: If we invert a hypothesis built with [or], there are two
-   constructors, so two subgoals get generated.  The
-   conclusion (result type) of the constructor ([P \/ Q]) doesn't
-   place any restrictions on the form of [P] or [Q], so we don't get
-   any extra equalities in the context of the subgoal.
-
-   _Example_: If we invert a hypothesis built with [and], there is
-   only one constructor, so only one subgoal gets generated.  Again,
-   the conclusion (result type) of the constructor ([P /\ Q]) doesn't
-   place any restrictions on the form of [P] or [Q], so we don't get
-   any extra equalities in the context of the subgoal.  The
-   constructor does have two arguments, though, and these can be seen
-   in the context in the subgoal.
-
-   _Example_: If we invert a hypothesis built with [eq], there is
-   again only one constructor, so only one subgoal gets generated.
-   Now, though, the form of the [refl_equal] constructor does give us
-   some extra information: it tells us that the two arguments to [eq]
-   must be the same!  The [inversion] tactic adds this fact to the
-   context.  *)
 
 
 (** **** Exercise: 1 star, optional (dist_and_or_eq_implies_and) *)  
 Lemma dist_and_or_eq_implies_and : forall P Q R,
        P /\ (Q \/ R) /\ Q = R -> P/\Q.
-Proof.
+Proof. 
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -990,7 +815,7 @@ Inductive all (X : Type) (P : X -> Prop) : list X -> Prop :=
 
 Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
   match l with
-    | [] => true
+    | [::] => true
     | x :: l' => andb (test x) (forallb test l')
   end.
 
@@ -1101,6 +926,9 @@ Proof.
 
 Inductive nostutter:  list nat -> Prop :=
  (* FILL IN HERE *)
+ | nost_nil : nostutter [::]
+ | nost_one : forall x, nostutter [:: x]
+ | nost_cons : forall x y l, x <> y -> nostutter (y :: l) -> nostutter (x :: y :: l)
 .
 
 (** Make sure each of these tests succeeds, but you are free
@@ -1115,33 +943,22 @@ Inductive nostutter:  list nat -> Prop :=
     you prefer you can also prove each example with more basic
     tactics.  *)
 
-Example test_nostutter_1:      nostutter [3;1;4;1;5;6].
+Example test_nostutter_1:      nostutter [:: 3;1;4;1;5;6].
+Proof.
 (* FILL IN HERE *) Admitted.
-(* 
-  Proof. repeat constructor; apply beq_nat_false; auto. Qed.
-*)
 
-Example test_nostutter_2:  nostutter [].
+Example test_nostutter_2:  nostutter [::].
 (* FILL IN HERE *) Admitted.
-(* 
-  Proof. repeat constructor; apply beq_nat_false; auto. Qed.
-*)
 
-Example test_nostutter_3:  nostutter [5].
+Example test_nostutter_3:  nostutter [:: 5].
 (* FILL IN HERE *) Admitted.
-(* 
-  Proof. repeat constructor; apply beq_nat_false; auto. Qed.
-*)
 
-Example test_nostutter_4:      not (nostutter [3;1;1;4]).
-(* FILL IN HERE *) Admitted.
-(* 
-  Proof. intro.
-  repeat match goal with 
-    h: nostutter _ |- _ => inversion h; clear h; subst 
-  end.
-  contradiction H1; auto. Qed.
+(** WARNING! This is a teaser, it will be very hard to solve unless
+    you have advanced knowledge of the [case] tactic.  If you can't
+    solve it, leave it admitted and wait for the next file.
 *)
+Example test_nostutter_4:      ~ (nostutter [:: 3;1;1;4]).
+(* FILL IN HERE *) Admitted.
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced (pigeonhole principle) *)
@@ -1154,12 +971,12 @@ Example test_nostutter_4:      not (nostutter [3;1;1;4]).
 (** First a pair of useful lemmas (we already proved these for lists
     of naturals, but not for arbitrary lists). *)
 
-Lemma app_length : forall (X:Type) (l1 l2 : list X),
-  length (l1 ++ l2) = length l1 + length l2. 
+Lemma size_cat : forall (X:Type) (l1 l2 : list X),
+  size (l1 ++ l2) = size l1 + size l2. 
 Proof. 
   (* FILL IN HERE *) Admitted.
 
-Lemma appears_in_app_split : forall (X:Type) (x:X) (l:list X),
+Lemma appears_in_cat_split : forall (X:Type) (x:X) (l:list X),
   appears_in x l -> 
   exists l1, exists l2, l = l1 ++ (x::l2).
 Proof.
@@ -1182,9 +999,9 @@ Inductive repeats {X:Type} : list X -> Prop :=
 Theorem pigeonhole_principle: forall (X:Type) (l1 l2:list X),
   excluded_middle -> 
   (forall x, appears_in x l1 -> appears_in x l2) -> 
-  length l2 < length l1 -> 
+  size l2 < size l1 -> 
   repeats l1.  
-Proof.  intros X l1. induction l1.
+Proof.  
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
