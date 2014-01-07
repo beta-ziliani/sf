@@ -131,7 +131,7 @@ Proof.
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
-(** **** Exercise: 2 stars (even__ev) *)
+(** **** Exercise: 2 stars (evenb__ev) *)
 (** Now we can prove the other direction of the equivalence of [even]
    and [ev], which we left hanging in chapter [Prop].  Notice that the
    left-hand conjunct here is the statement we are actually interested
@@ -141,10 +141,16 @@ Proof.
    proving the left conjunct by itself and observe where things get
    stuck.) *)
 
-Theorem even__ev : forall n : nat,
+Lemma evenb__ev' : forall n : nat,
   (evenb n -> ev n) /\ (evenb (S n) -> ev (S n)).
 Proof.
   (* Hint: Use induction on [n]. *)
+  (* FILL IN HERE *) Admitted.
+(** [] *)
+
+Theorem evenb__ev : forall n : nat,
+  evenb n -> ev n.
+Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -336,7 +342,8 @@ Qed.
     another way of stating the theorem such that [b /\ c] gets
     interpreted by Coq as [b = true /\ c = true] by the [is_true]
     coercion?  *)
-
+  (* FILL IN HERE *)
+(** [] *)
 
 
 
@@ -534,7 +541,7 @@ Proof.
   (* WORKED IN CLASS *)
   move=> P. rewrite {1}/not. move=> H. 
   (* But now what? There is no way to "invent" evidence for [~P] from
-     evidence for [P].  (The {1} modifier tells Coq to unfold only the
+     evidence for [P].  (The {1} modifier tells [rewrite] to unfold only the
      first occurance of [not].) *) Abort.
 
 (** **** Exercise: 5 stars, advanced, optional (classical_axioms) *)
@@ -658,7 +665,7 @@ Qed.
 
 (** Note that we have to explicitly give the witness. *)
 
-(** Or, instead of writing [apply: (ex_intro _ _e)] all the
+(** Or, instead of writing [apply: (ex_intro _ _ e)] all the
     time, we can use the convenient shorthand [exists e], which means
     the same thing. *)
 
@@ -898,7 +905,7 @@ Proof.
 (** Next, use [appears_in] to define an inductive proposition
     [no_repeats X l], which should be provable exactly when [l] is a
     list (with elements of type [X]) where every member is different
-    from every other.  For example, [no_repeats nat [1,2,3,4]] and
+    from every other.  For example, [no_repeats nat [:: 1,2,3,4]] and
     [no_repeats bool []] should be provable, while [no_repeats nat
     [1,2,1]] and [no_repeats bool [true,true]] should not be.  *)
 
@@ -926,22 +933,9 @@ Proof.
 
 Inductive nostutter:  list nat -> Prop :=
  (* FILL IN HERE *)
- | nost_nil : nostutter [::]
- | nost_one : forall x, nostutter [:: x]
- | nost_cons : forall x y l, x <> y -> nostutter (y :: l) -> nostutter (x :: y :: l)
 .
 
-(** Make sure each of these tests succeeds, but you are free
-    to change the proof if the given one doesn't work for you.
-    Your definition might be different from mine and still correct,
-    in which case the examples might need a different proof.
-   
-    The suggested proofs for the examples (in comments) use a number
-    of tactics we haven't talked about, to try to make them robust
-    with respect to different possible ways of defining [nostutter].
-    You should be able to just uncomment and use them as-is, but if
-    you prefer you can also prove each example with more basic
-    tactics.  *)
+(** Make sure each of these tests succeeds.  *)
 
 Example test_nostutter_1:      nostutter [:: 3;1;4;1;5;6].
 Proof.
@@ -953,10 +947,10 @@ Example test_nostutter_2:  nostutter [::].
 Example test_nostutter_3:  nostutter [:: 5].
 (* FILL IN HERE *) Admitted.
 
-(** WARNING! This is a teaser, it will be very hard to solve unless
-    you have advanced knowledge of the [case] tactic.  If you can't
-    solve it, leave it admitted and wait for the next file.
-*)
+(** WARNING! The following example is a teaser, it will be very hard
+    to solve unless you have advanced knowledge of the [case] tactic.
+    If you can't solve it, leave it admitted and wait for the next
+    file.  *)
 Example test_nostutter_4:      ~ (nostutter [:: 3;1;1;4]).
 (* FILL IN HERE *) Admitted.
 (** [] *)

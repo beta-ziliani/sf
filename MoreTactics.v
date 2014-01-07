@@ -20,8 +20,7 @@ For instace, here is a proof that 4 is even.
 
 Theorem even4 : ev 4.
 Proof.
-  apply: ev_SS.
-  apply: ev_SS.
+  do 2!apply: ev_SS.
   by apply: ev_0.
 Qed.
 
@@ -96,29 +95,134 @@ Proof.
 Abort.
 
 
-(** Basically, Coq is asking us for some help.  We need to provide him
-with a way of in terpreting the parameter for the inductive type.  *)
+(** Basically, [case] is requiring some help.  We need to provide an
+    interpretention for the parameter(s) of the inductive type.  This
+    is done via the [/] notation.  To the left of the [/] we say what
+    we expect this parameter to be equal to.  To the right, as usual,
+    we have the element we are casing on. *)
+
 Theorem even5_nonsense : 
   ev 5 -> 2 + 2 = 9.
 Proof.
   move=>H.
-  case P: _ / H =>[|n En].
-  - by [].
+  (* In this case, we want [n] to be equal to [5]. *)
+  case P: 5 / H =>[|n En].
+  - by []. (* The first case is trivial as before. *)
   (* notice the context, now it has the extra knowledge [P] that [S (S
   n)] is equal to [5].  If we [case] on [P] we get the hypothesis that
   [3 = n].  We use this hypothesis to rewrite [n] to [3] in [En].  *)
   case: P En=><-.
-  (* We can repeat the process.  I've used [{n}] to clear [n] from the
-  context, so I can use the name again. *) 
-  case P : _ / {n} =>[|n En].
-  - by [].  (* Notice that we have an absurd in the context: [3 = 0]. *)
+  (* We can repeat the process.  I'm using [{n}] to clear [n] from the
+  context, so I can use the name again.  Note that I don't need to
+  move the hiopthesis to the context. *) 
+  case P : 3 / {n} =>[|n En].
+  - by [].  (* We have an absurd in the context: [3 = 0]. *) 
   case: P En=><-.
   (* Now we have [ev 1].  We repeat the process and now we get two
-  absurds easy to knock out [by []]. *)
-  case P : _ / {n} =>[|n En].  
+  absurds easy to knock out [by []].  It is strange, but we can even
+  omit giving the argument ([1] in this case), and simple write an
+  underscore.  So [case] is asking for help but not really needing
+  it... *)
+  case P : _ / {n} =>[|n En].
   - by [].
+  by []. (* Another absurd in the hypothesis. *)
+Qed.
+
+
+(** It seems like a lot of work for proving something as easy as "if 5
+    is even, then 2+2 = 9".  As a matter of fact, Coq includes a
+    tactic called [inversion] that performs this kind of analysis,
+    without requiring hints from the user.  The problem with this
+    tactic is that it is obscure, slow, and it generates extremely
+    large proof terms.
+
+    In many cases it's not even necessary to conduct this kind of
+    proofs.  For instance, in the case of [ev], we have another way of
+    proving this nonesense: use the boolean predicate [evenb].  
+    We saw in [Prop.v] that from a [ev n] we can get [evenb n = true]:  *)
+
+Check ev__evenb.
+
+(** Now we can prove this nonsense very easily. *)
+Theorem even5_nonsense_simple : 
+  ev 5 -> 2 + 2 = 9.
+Proof.
+  move=>H.
+  move: (ev__evenb _ H).
   by [].
 Qed.
 
 
-(** It seems like a lot of work for proving somethig as easy as *)
+(** **** Exercise: 1 star (inversion_practice) *)
+Theorem SSSSev__even : forall n,
+  ev (S (S (S (S n)))) -> ev n.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem five_not_even :  
+  ~ ev 5.
+Proof. 
+  (* FILL IN HERE *) Admitted.
+
+(** **** Exercise: 1 star (ev_not_ev_S) *)
+(** Theorem [five_not_even] confirms the unsurprising fact that five
+    is not an even number.  Prove this more interesting fact: *)
+
+Theorem ev_not_ev_S : forall n,
+  ev n -> ~ ev (S n).
+Proof. 
+  rewrite /not => n H.
+  elim: H. (* not n! *)
+  (* FILL IN HERE *) Admitted.
+(** [] *)
+
+(** **** Exercise: 1 star (no_nostutter) *)
+(** Remember the example from the file [Prop.v].  Now you should be able to build the proof. *)
+Example test_nostutter_4:      ~ (nostutter [:: 3;1;1;4]).
+(* FILL IN HERE *) Admitted.
+(** [] *)
+
+
+
+(** In the case that we have both a predicate (in [Prop]) and a
+    boolean predicate, we can use computation instead of inversion. *)
+Theorem SSev__even : forall n,
+  ev (S (S n)) -> ev n.
+Proof.
+  move=>n H.
+  move: {H} (ev__evenb _ H). (* we get [evenb (S (S n))]. 
+                                ({H} erases the hypothesis H.) *)
+  rewrite /=.                (* [evenb (S (S n))] reduces to [evenb n] *)
+  move=> H. 
+  by apply: evenb__ev.
+Qed.
+
+(** * The [pose] tactic *)
+(** Sometimes we want to add some expression to the context.  For instance, We can use [move] *)
+
+
+(** **** Exercise: 3 stars, advanced (ev_ev__ev) *)
+(** Finding the appropriate thing to do induction on is a
+    bit tricky here: *)
+
+Theorem ev_ev__ev : forall n m,
+  ev (n+m) -> ev n -> ev m.
+Proof.
+  (* FILL IN HERE *) Admitted.
+(** [] *)
+
+(** **** Exercise: 3 stars, optional (ev_plus_plus) *)
+(** Here's an exercise that just requires applying existing lemmas.  No
+    induction or even case analysis is needed, but some of the rewriting
+    may be tedious. *)
+
+Theorem ev_plus_plus : forall n m p,
+  ev (n+m) -> ev (n+p) -> ev (m+p).
+Proof.
+  (* FILL IN HERE *) Admitted.
+(** [] *)
+
+
+
+
+

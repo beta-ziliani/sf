@@ -352,7 +352,7 @@ Proof.
 
 
 
-(** **** Exercise: 1 star (ev__even) *)
+(** **** Exercise: 1 star (ev__evenb) *)
 (** Here is a proof that the inductive definition of evenness implies
     the computational one. *)
 
@@ -366,7 +366,6 @@ Qed.
 
 (** Could this proof also be carried out by induction on [n] instead
     of [E]?  If not, why not? *)
-
 (* FILL IN HERE *)
 (** [] *)
 
