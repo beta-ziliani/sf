@@ -1,21 +1,23 @@
-(** * MoreTactics: Advanced tactics *)
+(** * MoreTactics: Advanced uses of [move] and [case]. *)
 
 Require Import ssreflect.
 Require Export Logic.
 
-(** This chapter presents sophisticated uses of the tactics we've
-    seen already, and some new tactics like [pose] and [set]. *)
+(** This chapter presents sophisticated uses of the two tactics we use
+    most: [move] and [case]. *)
 
-(** ** Inversion *)
+(** ** Inversion via [case] *)
 
 (** We have seen so far how to construct proofs for some inductive
-    predicate.  For instance, take the [ev] predicate from [Prop.v].  It characterices the proposition of a number being even by two rules:
+    predicate.  For instance, take the [ev] predicate from [Prop.v].
+    It characterices the proposition of a number being even by two
+    rules:
 
                           ev n
          ---- (ev_0)  ------------ (ev_SS)
          ev 0         ev (S (S n))
 
-For instace, here is a proof that 4 is even.
+    For instace, here is a proof that 4 is even.
 *)
 
 Theorem even4 : ev 4.
@@ -129,30 +131,6 @@ Proof.
 Qed.
 
 
-(** It seems like a lot of work for proving something as easy as "if 5
-    is even, then 2+2 = 9".  As a matter of fact, Coq includes a
-    tactic called [inversion] that performs this kind of analysis,
-    without requiring hints from the user.  The problem with this
-    tactic is that it is obscure, slow, and it generates extremely
-    large proof terms.
-
-    In many cases it's not even necessary to conduct this kind of
-    proofs.  For instance, in the case of [ev], we have another way of
-    proving this nonesense: use the boolean predicate [evenb].  
-    We saw in [Prop.v] that from a [ev n] we can get [evenb n = true]:  *)
-
-Check ev__evenb.
-
-(** Now we can prove this nonsense very easily. *)
-Theorem even5_nonsense_simple : 
-  ev 5 -> 2 + 2 = 9.
-Proof.
-  move=>H.
-  move: (ev__evenb _ H).
-  by [].
-Qed.
-
-
 (** **** Exercise: 1 star (inversion_practice) *)
 Theorem SSSSev__even : forall n,
   ev (S (S (S (S n)))) -> ev n.
@@ -183,9 +161,36 @@ Example test_nostutter_4:      ~ (nostutter [:: 3;1;1;4]).
 (** [] *)
 
 
+(** It seems like a lot of work for proving something as easy as "if 5
+    is even, then 2+2 = 9".  As a matter of fact, Coq includes a
+    tactic called [inversion] that performs this kind of analysis,
+    without requiring hints from the user.  The problem with this
+    tactic is that it is obscure, slow, and it generates extremely
+    large proof terms.
 
-(** In the case that we have both a predicate (in [Prop]) and a
+    In the next section we will see an alternative to inversion.
+*)
+
+(** ** Proof by computation and the [move/] tactic *)
+(**
+    In many cases it's not even necessary to conduct this kind of
+    proofs.  For instance, in the case of [ev], we have another way of
+    proving this nonesense: use the boolean predicate [evenb].  
+    We saw in [Prop.v] that from a [ev n] we can get [evenb n = true]:  *)
+
+Check ev__evenb.
+
+(** In a case where we have both a predicate (in [Prop]) and a
     boolean predicate, we can use computation instead of inversion. *)
+Theorem even5_nonsense_simple : 
+  ev 5 -> 2 + 2 = 9.
+Proof.
+  move=>H.
+  move: (ev__evenb _ H).  (* we get [evenb 5] as hypothesis, which reduces to [false] *)
+  by [].                  (* therefore, we have an absurd in our hypothesis, we conclude *)
+Qed.
+
+(** Here is another example, where we also use [evenb__ev]. *)
 Theorem SSev__even : forall n,
   ev (S (S n)) -> ev n.
 Proof.
@@ -197,8 +202,35 @@ Proof.
   by apply: evenb__ev.
 Qed.
 
-(** * The [pose] tactic *)
-(** Sometimes we want to add some expression to the context.  For instance, We can use [move] *)
+
+(** In the example above we have to first move the hypothesis to the
+    context, and then use it with the theorem [ev__evenb].
+    Conveniently, Ssreflect has a way of avoid this pop to the
+    context, push to the goal as an argument of a lemma.  This is done
+    with the [move/] tactic.  
+*)
+Theorem SSev__even_short n :
+  ev (S (S n)) -> ev n.
+Proof.
+  move/ev__evenb. 
+  rewrite /=.
+  move/evenb__ev.
+  by [].
+Qed.
+
+
+(** **** Exercise: 1 star (ev_computation) *)
+(** Redo the following examples using computation *)
+Theorem SSSSev__even_comp n :
+  ev (S (S (S (S n)))) -> ev n.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Theorem five_not_even_comp :  
+  ~ ev 5.
+Proof. 
+  (* FILL IN HERE *) Admitted.
+ 
 
 
 (** **** Exercise: 3 stars, advanced (ev_ev__ev) *)
@@ -221,8 +253,5 @@ Theorem ev_plus_plus : forall n m p,
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
-
-
-
 
 
