@@ -1044,9 +1044,22 @@ Proof.
 (** We saw that to rewrite in the opposite direction we can prepend
     the [-] sign, as in [rewrite -H].  In the same way, to fold, that
     is, to "unexpand" a definition we can use the [-/] combination.
-    It is used much less often.  Usually we need to help it by giving
-    (some of) the arguments of the definition, as in [rewrite
-    -/(override _ k2 _ k1)]. *)
+    It is used much less often.  In order to fold the definition, Coq
+    needs to know what are the arguments of the definition, although
+    we can usually provide implicit arguments (underscores).  Here are
+    some examples.  
+*)
+
+Theorem silly x : 2 + x = (fun y z => y + z) x 2.
+Proof.
+  rewrite [2 + x]/=.  (* only reduce the left part of the equation *)
+  rewrite -/plus.     (* folds the definition of [plus] *)
+  rewrite -/(plus _ _). (* folds nothing! *)
+  rewrite -/(plus 2 x). (* folds the left hand side of the equation *)
+  rewrite /=.   (* start again *)
+  rewrite -/(plus 2 _). (* actually, the second argument was not needed *)
+Abort.
+
 
 (** **** Exercise: 1 stars (folding/unfolding) *) 
 (** Take the theorem [override_neq] and try different combinations of
