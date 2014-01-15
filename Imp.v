@@ -25,6 +25,9 @@
     reasoning about imperative programs. *)
 
 (* ####################################################### *)
+
+Require Import ssreflect.
+
 (** *** Sflib *)
 
 (** A minor technical point: Instead of asking Coq to import our
@@ -141,7 +144,7 @@ Fixpoint aeval (a : aexp) : nat :=
 
 Example test_aeval1:
   aeval (APlus (ANum 2) (ANum 2)) = 4.
-Proof. reflexivity. Qed.
+Proof. by []. Qed.
 
 (** Similarly, evaluating a boolean expression yields a boolean. *)
 
@@ -149,10 +152,10 @@ Fixpoint beval (b : bexp) : bool :=
   match b with
   | BTrue       => true
   | BFalse      => false
-  | BEq a1 a2   => beq_nat (aeval a1) (aeval a2)
-  | BLe a1 a2   => ble_nat (aeval a1) (aeval a2)
-  | BNot b1     => negb (beval b1)
-  | BAnd b1 b2  => andb (beval b1) (beval b2)
+  | BEq a1 a2   => (aeval a1) == (aeval a2)
+  | BLe a1 a2   => (aeval a1) <= (aeval a2)
+  | BNot b1     => ~~ (beval b1)
+  | BAnd b1 b2  => (beval b1) && (beval b2)
   end.
 
 (* ####################################################### *)
@@ -186,7 +189,7 @@ Example test_optimize_0plus:
                         (APlus (ANum 0)
                                (APlus (ANum 0) (ANum 1))))
   = APlus (ANum 2) (ANum 1).
-Proof. reflexivity. Qed.
+Proof. by []. Qed.
 
 (** But if we want to be sure the optimization is correct --
     i.e., that evaluating an optimized expression gives the same
@@ -195,25 +198,28 @@ Proof. reflexivity. Qed.
 Theorem optimize_0plus_sound: forall a,
   aeval (optimize_0plus a) = aeval a.
 Proof.
-  intros a. induction a.
-  Case "ANum". reflexivity.
-  Case "APlus". destruct a1.
-    SCase "a1 = ANum n". destruct n.
-      SSCase "n = 0".  simpl. apply IHa2.
-      SSCase "n <> 0". simpl. rewrite IHa2. reflexivity.
-    SCase "a1 = APlus a1_1 a1_2".
-      simpl. simpl in IHa1. rewrite IHa1.
-      rewrite IHa2. reflexivity.
-    SCase "a1 = AMinus a1_1 a1_2".
-      simpl. simpl in IHa1. rewrite IHa1.
-      rewrite IHa2. reflexivity.
-    SCase "a1 = AMult a1_1 a1_2".
-      simpl. simpl in IHa1. rewrite IHa1.
-      rewrite IHa2. reflexivity.
-  Case "AMinus".
-    simpl. rewrite IHa1. rewrite IHa2. reflexivity.
-  Case "AMult".
-    simpl. rewrite IHa1. rewrite IHa2. reflexivity.  Qed.
+  elim=>[n | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2].
+  - (* Case "ANum" *) by [].
+  - (* Case "APlus" *) 
+    case: a1 IHa1 => [n | a1' a2' | a1' a2' | a1' a2'] IHa1.
+    + (* SCase "a1 = ANum n" *) 
+      case: n {IHa1}=>[|n]. 
+      * (* SSCase "n = 0" *) simpl_nat. by apply: IHa2.
+      * (* SSCase "n <> 0" *) rewrite /=. by rewrite IHa2.
+    + (* SCase "a1 = APlus a1' a2'" *)
+      rewrite /= in IHa1 *. rewrite IHa1.
+      by rewrite IHa2. 
+    + (* SCase "a1 = AMinus a1' a2'" *)
+      rewrite /= in IHa1 *. rewrite IHa1.
+      by rewrite IHa2.
+    + (* SCase "a1 = AMult a1' a2'" *)
+      rewrite /= in IHa1 *. rewrite IHa1.
+      by rewrite IHa2.
+  - (* Case "AMinus" *)
+    rewrite /=. rewrite IHa1. by rewrite IHa2.
+  (* Case "AMult" *)
+  rewrite /=. rewrite IHa1. by rewrite IHa2.
+Qed.
 
 (* ####################################################### *)
 (** * Coq Automation *)
@@ -233,42 +239,52 @@ Proof.
     interesting properties without becoming overwhelmed by boring,
     repetitive, low-level details. *)
 
+
 (* ####################################################### *)
 (** ** Tacticals *)
 
-(** _Tacticals_ is Coq's term for tactics that take other tactics as
-    arguments -- "higher-order tactics," if you will.  *)
+(** We have seen _tacticals_ before. They are tactics that take other
+    tactics as arguments -- "higher-order tactics," if you will.  *)
 
 (* ####################################################### *)
-(** *** The [repeat] Tactical *)
+(** *** The [do] Tactical *)
 
-(** The [repeat] tactical takes another tactic and keeps applying
-    this tactic until the tactic fails. Here is an example showing
-    that [100] is even using repeat. *)
+(** The [do] tactical allows several applications of a tactic. Here is
+    an example showing that [100] is even using [do]. *)
 
 Theorem ev100 : ev 100.
 Proof.
-  repeat (apply ev_SS). (* applies ev_SS 50 times,
+  do ! apply: ev_SS.   (* applies ev_SS 50 times,
                            until [apply ev_SS] fails *)
-  apply ev_0.
+  by apply: ev_0.
 Qed.
-(* Print ev100. *)
 
-(** The [repeat T] tactic never fails; if the tactic [T] doesn't apply
-    to the original goal, then repeat still succeeds without changing
-    the original goal (it repeats zero times). *)
 
+(** The [!] in the proof above indicates that we want to try until it
+    is not possible to continue applying the tactic.  We can specify
+    the number of iterations by providing the number before the [!].
+*)
 Theorem ev100' : ev 100.
 Proof.
-  repeat (apply ev_0). (* doesn't fail, applies ev_0 zero times *)
-  repeat (apply ev_SS). apply ev_0. (* we can continue the proof *)
+  do 50! apply: ev_SS.   (* applies ev_SS exactly 50 times *)
+  by apply: ev_0.
 Qed.
 
-(** The [repeat T] tactic does not have any bound on the number of
-    times it applies [T]. If [T] is a tactic that always succeeds then
-    repeat [T] will loop forever (e.g. [repeat simpl] loops forever
-    since [simpl] always succeeds). While Coq's term language is
-    guaranteed to terminate, Coq's tactic language is not! *)
+(** The [!] requires at least one application to succeed. *)
+Theorem ev100'_fail : ev 100.
+Proof.
+  Fail do ! apply: ev_0.   (* fail to apply ev_0 *)
+Abort.
+
+(** We can use the [?] mark to allow 0 or more applications of a
+    tactic.  For the moment it will be useless, but we will probably
+    encounter places where it will become handy. *)
+
+Theorem ev100'' : ev 100.
+Proof.
+  do ? apply: ev_0. (* does not fail *)
+Abort.
+
 
 (* ####################################################### *)
 (** *** The [try] Tactical *)
@@ -277,14 +293,14 @@ Qed.
     except that, if [T] fails, [try T] _successfully_ does nothing at
     all (instead of failing). *)
 
-Theorem silly1 : forall ae, aeval ae = aeval ae.
-Proof. try reflexivity. (* this just does [reflexivity] *) Qed.
+Theorem silly1 ae : aeval ae = aeval ae.
+Proof. try by []. (* this just does [by []] *) Qed.
 
-Theorem silly2 : forall (P : Prop), P -> P.
+Theorem silly2 (P Q: Prop) : (P -> Q) -> P -> Q.
 Proof.
-  intros P HP.
-  try reflexivity. (* just [reflexivity] would have failed *)
-  apply HP. (* we can still finish the proof in some other way *)
+  move=> HPQ xP.
+  try by []. (* just [by []] would have failed *)
+  by apply: HPQ. (* we can still finish the proof in some other way *)
 Qed.
 
 (** Using [try] in a completely manual proof is a bit silly, but
@@ -300,24 +316,27 @@ Qed.
 
 (** For example, consider the following trivial lemma: *)
 
-Lemma foo : forall n, ble_nat 0 n = true.
+Lemma foo : forall n, 0 < n + 1.
 Proof.
-  intros.
-  destruct n.
+  case => [|n].
     (* Leaves two subgoals, which are discharged identically...  *)
-    Case "n=0". simpl. reflexivity.
-    Case "n=Sn'". simpl. reflexivity.
+  - simpl_nat. by [].
+  simpl_nat. by [].
 Qed.
 
 (** We can simplify this proof using the [;] tactical: *)
 
-Lemma foo' : forall n, ble_nat 0 n = true.
+Lemma foo' : forall n, 0 < n + 1.
 Proof.
-  intros.
-  destruct n; (* [destruct] the current goal *)
-  simpl; (* then [simpl] each resulting subgoal *)
-  reflexivity. (* and do [reflexivity] on each resulting subgoal *)
+  case => [|n]; (* [case] the current goal *)
+  simpl_nat; (* then [simpl_nat] each resulting subgoal *)
+  by []. (* and conclude on each resulting subgoal *)
 Qed.
+
+(** (Actually, in this example, the [;] is not really need .) *)
+Lemma foo'' : forall n, 0 <= n.
+Proof.  by case.  Qed.
+
 
 (** Using [try] and [;] together, we can get rid of the repetition in
     the proof that was bothering us a little while ago. *)
@@ -325,26 +344,28 @@ Qed.
 Theorem optimize_0plus_sound': forall a,
   aeval (optimize_0plus a) = aeval a.
 Proof.
-  intros a.
-  induction a;
+  elim =>[n | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2];
     (* Most cases follow directly by the IH *)
-    try (simpl; rewrite IHa1; rewrite IHa2; reflexivity).
+    try by rewrite /= IHa1; rewrite IHa2.
   (* The remaining cases -- ANum and APlus -- are different *)
-  Case "ANum". reflexivity.
-  Case "APlus".
-    destruct a1;
+    (* Case "ANum". *) 
+    - by [].
+  (* Case "APlus". *)
+  case: a1 IHa1 => [n | a1' a2' | a1' a2' | a1' a2'] IHa1;
       (* Again, most cases follow directly by the IH *)
-      try (simpl; simpl in IHa1; rewrite IHa1;
-           rewrite IHa2; reflexivity).
+      try by rewrite /= in IHa1 *; rewrite IHa1;
+           rewrite IHa2.
     (* The interesting case, on which the [try...] does nothing,
-       is when [e1 = ANum n]. In this case, we have to destruct
+       is when [e1 = ANum n]. In this case, we have to case
        [n] (to see whether the optimization applies) and rewrite
        with the induction hypothesis. *)
-    SCase "a1 = ANum n". destruct n;
-      simpl; rewrite IHa2; reflexivity.   Qed.
+  (* SCase "a1 = ANum n". *)
+  by case: n {IHa1}; rewrite /= IHa2.
+Qed.
+
 
 (** Coq experts often use this "[...; try... ]" idiom after a tactic
-    like [induction] to take care of many similar cases all at once.
+    like [elim] to take care of many similar cases all at once.
     Naturally, this practice has an analog in informal proofs.
 
     Here is an informal proof of this theorem that matches the
@@ -383,24 +404,54 @@ Proof.
     out in full.  It would be better and clearer to drop it and just
     say, at the top, "Most cases are either immediate or direct from
     the IH.  The only interesting case is the one for [APlus]..."  We
-    can make the same improvement in our formal proof too.  Here's how
-    it looks: *)
+    can make the same improvement in our formal proof too.  More
+    specifically, in the formal proof we say "The first case is
+    trivial, and most of the other cases can be solved by the IH."  *)
+
+(** Since we are distinguishing the first case from the rest of the
+    cases, we can also improve the introduction of names.  That is,
+    instead of writing [[n | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2 | a1
+    IHa1 a2 IHa2]] we can not introduce any of them, and let the
+    tactic [move] do it for the last three cases. *)
 
 Theorem optimize_0plus_sound'': forall a,
   aeval (optimize_0plus a) = aeval a.
 Proof.
-  intros a.
-  induction a;
-    (* Most cases follow directly by the IH *)
-    try (simpl; rewrite IHa1; rewrite IHa2; reflexivity);
-    (* ... or are immediate by definition *)
-    try reflexivity.
-  (* The interesting case is when a = APlus a1 a2. *)
-  Case "APlus".
-    destruct a1; try (simpl; simpl in IHa1; rewrite IHa1;
-                      rewrite IHa2; reflexivity).
-    SCase "a1 = ANum n". destruct n;
-      simpl; rewrite IHa2; reflexivity. Qed.
+  elim; (* No names introduced! *)
+    (* The first case is trivial. *)
+    first 1 [by []] 
+    (* In the rest of the cases we introduce the names and try
+    directly by the IH *) 
+    || (move=>a1 IHa1 a2 IHa2; try by rewrite /= IHa1 IHa2).
+  (* The remaining case APlus *)
+  case: a1 IHa1;
+    first 1 [idtac]
+    || (move=>a1' a2' IHa1 ;
+       (* Again, most cases follow directly by the IH *)
+        by rewrite /= in IHa1 *; rewrite IHa1 IHa2).
+    (* The interesting case, on which [idtac] does nothing,
+       is when [e1 = ANum n]. In this case, we have to case
+       [n] (to see whether the optimization applies) and rewrite
+       with the induction hypothesis. *)
+  (* SCase "a1 = ANum n". *)
+  by case; rewrite /= IHa2.
+Qed.
+
+
+(** Here is another option: kill the first case and then solve the
+    rest of the goals. *)
+Theorem optimize_0plus_sound''': forall a, 
+  aeval (optimize_0plus a) = aeval a.
+Proof.  
+  elim; first by []; 
+    move=>a1 IHa1 a2 IHa2; try by rewrite /= IHa1 IHa2.
+  (* The remaining case APlus *)
+  case: a1 IHa1; 
+    first (by case; rewrite /= IHa2);
+    by move=>a1' a2' /= IHa1; rewrite IHa1 IHa2.
+Qed.
+
+
 
 (* ####################################################### *)
 (** *** The [;] Tactical (General Form) *)
@@ -417,6 +468,8 @@ Proof.
    [Ti]'s are the same tactic; i.e. [T;T'] is just a shorthand for:
       T; [T' | T' | ... | T']
 *)
+
+HASTA ACA
 
 (* ####################################################### *)
 (** ** Defining New Tactic Notations *)
