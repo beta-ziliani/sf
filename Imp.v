@@ -409,22 +409,26 @@ Qed.
     trivial, and most of the other cases can be solved by the IH."  *)
 
 (** Since we are distinguishing the first case from the rest of the
-    cases, we can also improve the introduction of names.  That is,
-    instead of writing [[n | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2 | a1
-    IHa1 a2 IHa2]] we can not introduce any of them, and let the
-    tactic [move] do it for the last three cases. *)
+    cases, we can also remove the redundancy in the naming of the
+    variables.  That is, instead of writing [elim => [n | a1 IHa1 a2
+    IHa2 | a1 IHa1 a2 IHa2 | a1 IHa1 a2 IHa2]] we can avoid
+    introducing them, and let the tactic [move] do it for the last
+    three cases. *)
 
 Theorem optimize_0plus_sound'': forall a,
   aeval (optimize_0plus a) = aeval a.
 Proof.
   elim; (* No names introduced! *)
     (* The first case is trivial. *)
-    first 1 [by []] 
+    first 1 [by []]
     (* In the rest of the cases we introduce the names and try
     directly by the IH *) 
     || (move=>a1 IHa1 a2 IHa2; try by rewrite /= IHa1 IHa2).
   (* The remaining case APlus *)
   case: a1 IHa1;
+    (* The first case is the special one, so we keep it untouched.
+    This is done with the [idtac] tactic, which can be thought of as
+    the [skip] instruction in assembler: it does nothing. *)
     first 1 [idtac]
     || (move=>a1' a2' IHa1 ;
        (* Again, most cases follow directly by the IH *)
@@ -439,7 +443,12 @@ Qed.
 
 
 (** Here is another option: kill the first case and then solve the
-    rest of the goals. *)
+    rest of the goals.  Notice the subtle difference: while in the
+    previous proof the first case was treated differently from the
+    rest, in the proof below we are removing it from the proof stack
+    prior to solving the rest of the goals.  If in the proof below the
+    first case is not eliminated, then the rest of the tactics
+    following the [;] will get applied to the first case. *)
 Theorem optimize_0plus_sound''': forall a, 
   aeval (optimize_0plus a) = aeval a.
 Proof.  
@@ -451,6 +460,7 @@ Proof.
     by move=>a1' a2' /= IHa1; rewrite IHa1 IHa2.
 Qed.
 
+(** Analogous to [first], Ssreflect also have a [last]. *)
 
 
 (* ####################################################### *)
@@ -469,103 +479,6 @@ Qed.
       T; [T' | T' | ... | T']
 *)
 
-HASTA ACA
-
-(* ####################################################### *)
-(** ** Defining New Tactic Notations *)
-
-(** Coq also provides several ways of "programming" tactic scripts.
-
-      - The [Tactic Notation] idiom illustrated below gives a handy
-        way to define "shorthand tactics" that bundle several tactics
-        into a single command.
-
-      - For more sophisticated programming, Coq offers a small
-        built-in programming language called [Ltac] with primitives
-        that can examine and modify the proof state.  The details are
-        a bit too complicated to get into here (and it is generally
-        agreed that [Ltac] is not the most beautiful part of Coq's
-        design!), but they can be found in the reference manual, and
-        there are many examples of [Ltac] definitions in the Coq
-        standard library that you can use as examples.
-
-      - There is also an OCaml API, which can be used to build tactics
-        that access Coq's internal structures at a lower level, but
-        this is seldom worth the trouble for ordinary Coq users.
-
-The [Tactic Notation] mechanism is the easiest to come to grips with,
-and it offers plenty of power for many purposes.  Here's an example.
-*)
-
-Tactic Notation "simpl_and_try" tactic(c) :=
-  simpl;
-  try c.
-
-(** This defines a new tactical called [simpl_and_try] which
-    takes one tactic [c] as an argument, and is defined to be
-    equivalent to the tactic [simpl; try c].  For example, writing
-    "[simpl_and_try reflexivity.]" in a proof would be the same as
-    writing "[simpl; try reflexivity.]" *)
-
-(** The next subsection gives a more sophisticated use of this
-    feature... *)
-
-(* ####################################################### *)
-(** *** Bulletproofing Case Analyses *)
-
-(** Being able to deal with most of the cases of an [induction]
-    or [destruct] all at the same time is very convenient, but it can
-    also be a little confusing.  One problem that often comes up is
-    that _maintaining_ proofs written in this style can be difficult.
-    For example, suppose that, later, we extended the definition of
-    [aexp] with another constructor that also required a special
-    argument.  The above proof might break because Coq generated the
-    subgoals for this constructor before the one for [APlus], so that,
-    at the point when we start working on the [APlus] case, Coq is
-    actually expecting the argument for a completely different
-    constructor.  What we'd like is to get a sensible error message
-    saying "I was expecting the [AFoo] case at this point, but the
-    proof script is talking about [APlus]."  Here's a nice trick (due
-    to Aaron Bohannon) that smoothly achieves this. *)
-
-Tactic Notation "aexp_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "ANum" | Case_aux c "APlus"
-  | Case_aux c "AMinus" | Case_aux c "AMult" ].
-
-(** ([Case_aux] implements the common functionality of [Case],
-    [SCase], [SSCase], etc.  For example, [Case "foo"] is defined as
-    [Case_aux Case "foo".) *)
-
-(** For example, if [a] is a variable of type [aexp], then doing
-      aexp_cases (induction a) Case
-    will perform an induction on [a] (the same as if we had just typed
-    [induction a]) and _also_ add a [Case] tag to each subgoal
-    generated by the [induction], labeling which constructor it comes
-    from.  For example, here is yet another proof of
-    [optimize_0plus_sound], using [aexp_cases]: *)
-
-Theorem optimize_0plus_sound''': forall a,
-  aeval (optimize_0plus a) = aeval a.
-Proof.
-  intros a.
-  aexp_cases (induction a) Case;
-    try (simpl; rewrite IHa1; rewrite IHa2; reflexivity);
-    try reflexivity.
-  (* At this point, there is already an ["APlus"] case name
-     in the context.  The [Case "APlus"] here in the proof
-     text has the effect of a sanity check: if the "Case"
-     string in the context is anything _other_ than ["APlus"]
-     (for example, because we added a clause to the definition
-     of [aexp] and forgot to change the proof) we'll get a
-     helpful error at this point telling us that this is now
-     the wrong case. *)
-  Case "APlus".
-    aexp_cases (destruct a1) SCase;
-      try (simpl; simpl in IHa1;
-           rewrite IHa1; rewrite IHa2; reflexivity).
-    SCase "ANum". destruct n;
-      simpl; rewrite IHa2; reflexivity.  Qed.
 
 (** **** Exercise: 3 stars (optimize_0plus_b) *)
 (** Since the [optimize_0plus] tranformation doesn't change the value
@@ -595,72 +508,6 @@ Proof.
 *)
 (** [] *)
 
-(* ####################################################### *)
-(** ** The [omega] Tactic *)
-
-(** The [omega] tactic implements a decision procedure for a subset of
-    first-order logic called _Presburger arithmetic_.  It is based on
-    the Omega algorithm invented in 1992 by William Pugh.
-
-    If the goal is a universally quantified formula made out of
-
-      - numeric constants, addition ([+] and [S]), subtraction ([-]
-        and [pred]), and multiplication by constants (this is what
-        makes it Presburger arithmetic),
-
-      - equality ([=] and [<>]) and inequality ([<=]), and
-
-      - the logical connectives [/\], [\/], [~], and [->],
-
-    then invoking [omega] will either solve the goal or tell you that
-    it is actually false. *)
-
-Example silly_presburger_example : forall m n o p,
-  m + n <= n + o /\ o + 3 = p + 3 ->
-  m <= p.
-Proof.
-  intros. omega.
-Qed.
-
-(** Liebniz wrote, "It is unworthy of excellent men to lose
-    hours like slaves in the labor of calculation which could be
-    relegated to anyone else if machines were used."  We recommend
-    using the omega tactic whenever possible. *)
-
-(* ####################################################### *)
-(** ** A Few More Handy Tactics *)
-
-(** Finally, here are some miscellaneous tactics that you may find
-    convenient.
-
-     - [clear H]: Delete hypothesis [H] from the context.
-
-     - [subst x]: Find an assumption [x = e] or [e = x] in the
-       context, replace [x] with [e] throughout the context and
-       current goal, and clear the assumption.
-
-     - [subst]: Substitute away _all_ assumptions of the form [x = e]
-       or [e = x].
-
-     - [rename... into...]: Change the name of a hypothesis in the
-       proof context.  For example, if the context includes a variable
-       named [x], then [rename x into y] will change all occurrences
-       of [x] to [y].
-
-     - [assumption]: Try to find a hypothesis [H] in the context that
-       exactly matches the goal; if one is found, behave just like
-       [apply H].
-
-     - [contradiction]: Try to find a hypothesis [H] in the current
-       context that is logically equivalent to [False].  If one is
-       found, solve the goal.
-
-     - [constructor]: Try to find a constructor [c] (from some
-       [Inductive] definition in the current environment) that can be
-       applied to solve the current goal.  If one is found, behave
-       like [apply c]. *)
-
-(** We'll see many examples of these in the proofs below. *)
 
 (* ####################################################### *)
 (** * Evaluation as a Relation *)
@@ -726,10 +573,6 @@ Inductive aevalR : aexp -> nat -> Prop :=
 
   where "e '||' n" := (aevalR e n) : type_scope.
 
-Tactic Notation "aevalR_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "E_ANum" | Case_aux c "E_APlus"
-  | Case_aux c "E_AMinus" | Case_aux c "E_AMult" ].
 
 (* ####################################################### *)
 (** ** Inference Rule Notation *)
@@ -798,36 +641,43 @@ Tactic Notation "aevalR_cases" tactic(first) ident(c) :=
 Theorem aeval_iff_aevalR : forall a n,
   (a || n) <-> aeval a = n.
 Proof.
- split.
- Case "->".
-   intros H.
-   aevalR_cases (induction H) SCase; simpl.
-   SCase "E_ANum".
-     reflexivity.
-   SCase "E_APlus".
-     rewrite IHaevalR1.  rewrite IHaevalR2.  reflexivity.
-   SCase "E_AMinus".
-     rewrite IHaevalR1.  rewrite IHaevalR2.  reflexivity.
-   SCase "E_AMult".
-     rewrite IHaevalR1.  rewrite IHaevalR2.  reflexivity.
- Case "<-".
-   generalize dependent n.
-   aexp_cases (induction a) SCase;
-      simpl; intros; subst.
-   SCase "ANum".
-     apply E_ANum.
-   SCase "APlus".
-     apply E_APlus.
-      apply IHa1. reflexivity.
-      apply IHa2. reflexivity.
-   SCase "AMinus".
-     apply E_AMinus.
-      apply IHa1. reflexivity.
-      apply IHa2. reflexivity.
-   SCase "AMult".
-     apply E_AMult.
-      apply IHa1. reflexivity.
-      apply IHa2. reflexivity.
+  move=>a n.
+  split.
+  (* Case "->". *)
+  - elim; first 1 [by []] || 
+                by move=>? ? ? ? /= _ -> _ ->.
+  (* Case "<-". *)
+  move: a n; elim; 
+    first 1 [move=>n' n] || move=>/= ? IHa1 ? IHa2 ? <- .
+  + (* SCase "ANum". *)
+    by move=>/=->; apply: E_ANum.
+  + (* SCase "APlus". *)
+    apply: E_APlus.
+    - by apply: IHa1.
+    by apply: IHa2.
+  + (* SCase "AMinus". *)
+    apply: E_AMinus.
+    - by apply: IHa1.
+    by apply: IHa2.
+  (* SCase "AMult". *)
+  apply: E_AMult.
+  - by apply: IHa1.
+  by apply: IHa2.
+Qed.
+
+
+Theorem aeval_iff_aevalR' : forall a n,
+  (a || n) <-> aeval a = n.
+Proof.
+  move=>a n.
+  split.
+  (* Case "->". *)
+  - elim; first 1 [by []] || 
+                by move=>? ? ? ? /= _ -> _ ->.
+  (* Case "<-". *)
+  move: a n; elim; 
+    first 1 [by move=>n' n /= ->; constructor] || 
+       move=>/= ? IHa1 ? IHa2 ? <-; constructor; by (apply: IHa1 || apply: IHa2).
 Qed.
 
 (** Note: if you're reading the HTML file, you'll see an empty square box instead
