@@ -645,7 +645,7 @@ Proof.
   split.
   (* Case "->". *)
   - elim; first 1 [by []] || 
-                by move=>? ? ? ? /= _ -> _ ->.
+      by move=>? ? ? ? /= _ -> _ ->.
   (* Case "<-". *)
   move: a n; elim; 
     first 1 [move=>n' n] || move=>/= ? IHa1 ? IHa2 ? <- .
@@ -666,20 +666,6 @@ Proof.
 Qed.
 
 
-Theorem aeval_iff_aevalR' : forall a n,
-  (a || n) <-> aeval a = n.
-Proof.
-  move=>a n.
-  split.
-  (* Case "->". *)
-  - elim; first 1 [by []] || 
-                by move=>? ? ? ? /= _ -> _ ->.
-  (* Case "<-". *)
-  move: a n; elim; 
-    first 1 [by move=>n' n /= ->; constructor] || 
-       move=>/= ? IHa1 ? IHa2 ? <-; constructor; by (apply: IHa1 || apply: IHa2).
-Qed.
-
 (** Note: if you're reading the HTML file, you'll see an empty square box instead
 of a proof for this theorem.  
 You can click on this box to "unfold" the text to see the proof.
@@ -687,20 +673,25 @@ Click on the unfolded to text to "fold" it back up to a box. We'll be using
 this style frequently from now on to help keep the HTML easier to read.
 The full proofs always appear in the .v files. *)
 
-(** We can make the proof quite a bit shorter by making more
-    use of tacticals... *)
+(** We can make the proof quite a bit shorter by making use of the
+    [constructor] tactic.  This tactic tries to apply each of the
+    constructors of the inductive type in the goal.  For instance, for
+    a goal of the form [ANum n || n] it will apply the [E_ANum]
+    constructor. *)
 
 Theorem aeval_iff_aevalR' : forall a n,
   (a || n) <-> aeval a = n.
 Proof.
-  (* WORKED IN CLASS *)
+  move=>a n.
   split.
-  Case "->".
-    intros H; induction H; subst; reflexivity.
-  Case "<-".
-    generalize dependent n.
-    induction a; simpl; intros; subst; constructor;
-       try apply IHa1; try apply IHa2; reflexivity.
+  (* Case "->". *)
+  - elim; first by [];
+      by move=>? ? ? ? /= _ -> _ ->.
+  (* Case "<-". *)
+  move: a n; elim;
+    first (by move=>n' n /= ->; constructor);
+    move=>/= ? IHa1 ? IHa2 ? <-; constructor; 
+    by (apply: IHa1 || apply: IHa2).
 Qed.
 
 (** **** Exercise: 3 stars  (bevalR) *)
@@ -719,13 +710,13 @@ End AExp.
 
 (** For the definitions of evaluation for arithmetic and boolean
     expressions, the choice of whether to use functional or relational
-    definitions is mainly a matter of taste.  In general, Coq has
+    definitions is mainly a matter of taste.  In general, plain Coq has
     somewhat better support for working with relations.  On the other
     hand, in some sense function definitions carry more information,
     because functions are necessarily deterministic and defined on all
     arguments; for a relation we have to show these properties
     explicitly if we need them. Functions also take advantage of Coq's
-    computations mechanism.
+    computations mechanism, and are better supported by Ssreflect.
 
     However, there are circumstances where relational definitions of
     evaluation are preferable to functional ones.  *)
@@ -762,34 +753,7 @@ Inductive aevalR : aexp -> nat -> Prop :=
 where "a '||' n" := (aevalR a n) : type_scope.
 
 End aevalR_division.
-Module aevalR_extended.
 
-Inductive aexp : Type :=
-  | AAny  : aexp                   (* <--- NEW *)
-  | ANum : nat -> aexp
-  | APlus : aexp -> aexp -> aexp
-  | AMinus : aexp -> aexp -> aexp
-  | AMult : aexp -> aexp -> aexp.
-
-(** Again, extending [aeval] would be tricky (because evaluation is
-    _not_ a deterministic function from expressions to numbers), but
-    extending [aevalR] is no problem: *)
-
-Inductive aevalR : aexp -> nat -> Prop :=
-  | E_Any : forall (n:nat),
-      AAny || n                 (* <--- new *)
-  | E_ANum : forall (n:nat),
-      (ANum n) || n
-  | E_APlus : forall (a1 a2: aexp) (n1 n2 : nat),
-      (a1 || n1) -> (a2 || n2) -> (APlus a1 a2) || (n1 + n2)
-  | E_AMinus : forall (a1 a2: aexp) (n1 n2 : nat),
-      (a1 || n1) -> (a2 || n2) -> (AMinus a1 a2) || (n1 - n2)
-  | E_AMult :  forall (a1 a2: aexp) (n1 n2 : nat),
-      (a1 || n1) -> (a2 || n2) -> (AMult a1 a2) || (n1 * n2)
-
-where "a '||' n" := (aevalR a n) : type_scope.
-
-End aevalR_extended.
 
 (** * Expressions With Variables *)
 
@@ -813,39 +777,54 @@ End aevalR_extended.
 Module Id. 
 
 (** We define a new inductive datatype [Id] so that we won't confuse
-    identifiers and numbers.  We use [sumbool] to define a computable
-    equality operator on [Id]. *)
+    identifiers and numbers.  We use the machinery of Ssreflect to
+    define its decidable equality (based on [nat]s decidable
+    equality). *)
 
 Inductive id : Type :=
   Id : nat -> id.
 
-Theorem eq_id_dec : forall id1 id2 : id, {id1 = id2} + {id1 <> id2}.
-Proof.
-   intros id1 id2.
-   destruct id1 as [n1]. destruct id2 as [n2].
-   destruct (eq_nat_dec n1 n2) as [Heq | Hneq].
-   Case "n1 = n2".
-     left. rewrite Heq. reflexivity.
-   Case "n1 <> n2".
-     right. intros contra. inversion contra. apply Hneq. apply H0.
-Defined. 
+(** Two [id]s are equal if their [nat]s are equal. *)
+Definition eq_id := fun id1 id2 : id =>
+                         match id1, id2 with
+                         | Id n1, Id n2 => n1 == n2
+                         end.
 
-(** The following lemmas will be useful for rewriting terms involving [eq_id_dec]. *)
-
-Lemma eq_id : forall (T:Type) x (p q:T), 
-              (if eq_id_dec x x then p else q) = p. 
+(** We prove that [eq_id] indeed defines an equality.
+    [Equality.axiom] establishes that [eq_id x y] reflects [x = y]. *)
+Lemma eq_idP : Equality.axiom eq_id.
 Proof.
-  intros. 
-  destruct (eq_id_dec x x). 
-  Case "x = x". 
-    reflexivity.
-  Case "x <> x (impossible)". 
-    apply ex_falso_quodlibet; apply n; reflexivity. Qed.
+  rewrite /Equality.axiom.
+  move=> [n] [m]. 
+  apply: (iffP idP).
+  - rewrite /=. move/eqP.
+    by move=>->.
+  move=>-> /=.
+  by [].
+Qed.
+
+(** We add our equality in the database of equalities of Ssreflect.
+    This will allow us to use freely the [_ == _] notation and all the
+    lemmas involving equality.  From a technical point of view, we are
+    simply adding an instance of the overloading mechanism.  For the
+    moment, the details are not important. *)
+Canonical id_eqMixin := EqMixin eq_idP.
+Canonical id_eqType := Eval hnf in EqType id id_eqMixin.
+
+Example silly_id : forall i1 i2 : id, (i1 == i1) && (i1 == i2 == (i2 == i1)).
+Proof. 
+  move=>i1 i2.
+  rewrite eq_refl.  (* we use the lemma for reflexivty of [_ == _] *)
+  rewrite [i1 == _]eq_sym. (* and the lemma for symmetry *)
+  rewrite eq_refl.
+  by [].
+Qed.
 
 (** **** Exercise: 1 star, optional (neq_id) *)
-Lemma neq_id : forall (T:Type) x y (p q:T), x <> y -> 
-               (if eq_id_dec x y then p else q) = q. 
+Lemma neq_id : forall (T:Type) (x y : id) (p q:T), x != y -> 
+               (if x == y then p else q) = q. 
 Proof.
+  (* TIP: remember that one can do [case] on any object, not only a variable *) 
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -861,13 +840,13 @@ End Id.
     let the state be defined for _all_ variables, even though any
     given program is only going to mention a finite number of them. *)
 
-Definition state := id -> nat.
+Definition state := ids -> nat.
 
 Definition empty_state : state :=
   fun _ => 0.
 
-Definition update (st : state) (x : id) (n : nat) : state :=
-  fun x' => if eq_id_dec x x' then n else st x'.
+Definition update (st : state) (x : ids) (n : nat) : state :=
+  fun x' => if x == x' then n else st x'.
 
 (** For proofs involving states, we'll need several simple properties
     of [update]. *)
@@ -881,7 +860,7 @@ Proof.
 
 (** **** Exercise: 1 star (update_neq) *)
 Theorem update_neq : forall x2 x1 n st,
-  x2 <> x1 ->                        
+  x2 != x1 ->                        
   (update st x2 n) x1 = (st x1).
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -891,7 +870,7 @@ Proof.
 (** Before starting to play with tactics, make sure you understand
     exactly what the theorem is saying! *)
 
-Theorem update_example : forall (n:nat),
+Example update_example : forall (n:nat),
   (update empty_state (Id 2) n) (Id 3) = 0.
 Proof.
   (* FILL IN HERE *) Admitted.
@@ -928,22 +907,18 @@ Proof.
 
 Inductive aexp : Type :=
   | ANum : nat -> aexp
-  | AId : id -> aexp                (* <----- NEW *)
+  | AId : ids -> aexp                (* <----- NEW *)
   | APlus : aexp -> aexp -> aexp
   | AMinus : aexp -> aexp -> aexp
   | AMult : aexp -> aexp -> aexp.
 
-Tactic Notation "aexp_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "ANum" | Case_aux c "AId" | Case_aux c "APlus"
-  | Case_aux c "AMinus" | Case_aux c "AMult" ].
 
 (** Defining a few variable names as notational shorthands will make
     examples easier to read: *)
 
-Definition X : id := Id 0.
-Definition Y : id := Id 1.
-Definition Z : id := Id 2.
+Definition X := Id 0.
+Definition Y := Id 1.
+Definition Z := Id 2.
 
 (** (This convention for naming program variables ([X], [Y],
     [Z]) clashes a bit with our earlier use of uppercase letters for
@@ -961,10 +936,6 @@ Inductive bexp : Type :=
   | BNot : bexp -> bexp
   | BAnd : bexp -> bexp -> bexp.
 
-Tactic Notation "bexp_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "BTrue" | Case_aux c "BFalse" | Case_aux c "BEq"
-  | Case_aux c "BLe" | Case_aux c "BNot" | Case_aux c "BAnd" ].
 
 (* ################################################### *)
 (** ** Evaluation  *)
@@ -985,23 +956,23 @@ Fixpoint beval (st : state) (b : bexp) : bool :=
   match b with
   | BTrue       => true
   | BFalse      => false
-  | BEq a1 a2   => beq_nat (aeval st a1) (aeval st a2)
-  | BLe a1 a2   => ble_nat (aeval st a1) (aeval st a2)
-  | BNot b1     => negb (beval st b1)
-  | BAnd b1 b2  => andb (beval st b1) (beval st b2)
+  | BEq a1 a2   => aeval st a1 == aeval st a2
+  | BLe a1 a2   => aeval st a1 <= aeval st a2
+  | BNot b1     => ~~ beval st b1
+  | BAnd b1 b2  => (beval st b1) && (beval st b2)
   end.
 
 Example aexp1 :
   aeval (update empty_state X 5)
         (APlus (ANum 3) (AMult (AId X) (ANum 2)))
   = 13.
-Proof. reflexivity. Qed.
+Proof. by []. Qed.
 
 Example bexp1 :
   beval (update empty_state X 5)
         (BAnd BTrue (BNot (BLe (AId X) (ANum 4))))
   = true.
-Proof. reflexivity. Qed.
+Proof. by []. Qed.
 
 (* ####################################################### *)
 (** * Commands *)
@@ -1039,10 +1010,8 @@ Inductive com : Type :=
   | CIf : bexp -> com -> com -> com
   | CWhile : bexp -> com -> com.
 
-Tactic Notation "com_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "SKIP" | Case_aux c "::=" | Case_aux c ";;"
-  | Case_aux c "IFB" | Case_aux c "WHILE" ].
+
+HASTA ACA
 
 (** As usual, we can use a few [Notation] declarations to make things
     more readable.  We need to be a bit careful to avoid conflicts

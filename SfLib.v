@@ -48,6 +48,34 @@ Admitted.
 Tactic Notation "simpl_nat" :=
   do ![rewrite /= ?/leq ?/double ?/factorial ?/expn ?/muln ?/addn ?/subn].
 
+
+(** Identities *)
+Inductive ids : Type :=
+  Id : nat -> ids.
+
+(** Two [id]s are equal if their [nat]s are equal. *)
+Definition eq_id := fun id1 id2 : ids =>
+                         match id1, id2 with
+                         | Id n1, Id n2 => n1 == n2
+                         end.
+
+Lemma eq_idP : Equality.axiom eq_id.
+Proof.
+  rewrite /Equality.axiom.
+  move=> [n] [m]. 
+  apply: (iffP idP).
+  - rewrite /=. move/eqP.
+    by move=>->.
+  move=>-> /=.
+  by [].
+Qed.
+
+Canonical id_eqMixin := EqMixin eq_idP.
+Canonical id_eqType := Eval hnf in EqType ids id_eqMixin.
+
+
+
+
 (*
 
 
