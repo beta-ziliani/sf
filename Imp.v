@@ -1005,13 +1005,11 @@ Proof. by []. Qed.
 
 Inductive com : Type :=
   | CSkip : com
-  | CAss : id -> aexp -> com
+  | CAss : ids -> aexp -> com
   | CSeq : com -> com -> com
   | CIf : bexp -> com -> com -> com
   | CWhile : bexp -> com -> com.
 
-
-HASTA ACA
 
 (** As usual, we can use a few [Notation] declarations to make things
     more readable.  We need to be a bit careful to avoid conflicts
@@ -1226,11 +1224,6 @@ Inductive ceval : com -> state -> state -> Prop :=
 
   where "c1 '/' st '||' st'" := (ceval c1 st st').
 
-Tactic Notation "ceval_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "E_Skip" | Case_aux c "E_Ass" | Case_aux c "E_Seq"
-  | Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
-  | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop" ].
 
 (** The cost of defining evaluation as a relation instead of a
     function is that we now need to construct _proofs_ that some
@@ -1247,13 +1240,12 @@ Example ceval_example1:
    || (update (update empty_state X 2) Z 4).
 Proof.
   (* We must supply the intermediate state *)
-  apply E_Seq with (update empty_state X 2).
-  Case "assignment command".
-    apply E_Ass. reflexivity.
-  Case "if command".
-    apply E_IfFalse.
-      reflexivity.
-      apply E_Ass. reflexivity.  Qed.
+  apply: (E_Seq _ _ _ (update empty_state X 2)).
+  - apply: E_Ass. by [].
+  apply: E_IfFalse.
+  - by [].
+  apply: E_Ass. by [].
+Qed.
 
 (** **** Exercise: 2 stars (ceval_example2) *)
 Example ceval_example2:
@@ -1262,6 +1254,7 @@ Example ceval_example2:
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
+
 
 (** **** Exercise: 3 stars, advanced (pup_to_n) *)
 (** Write an Imp program that sums the numbers from [1] to
@@ -1297,18 +1290,28 @@ Proof.
     In fact, this cannot happen: [ceval] is a partial function.
     Here's the proof: *)
 
+HASTA ACA
+
 Theorem ceval_deterministic: forall c st st1 st2,
      c / st || st1  ->
      c / st || st2 ->
      st1 = st2.
 Proof.
-  intros c st st1 st2 E1 E2.
+  move=> c st st1 st2 E1 E2.
   generalize dependent st2.
-  ceval_cases (induction E1) Case;
-           intros st2 E2; inversion E2; subst.
-  Case "E_Skip". reflexivity.
-  Case "E_Ass". reflexivity.
-  Case "E_Seq".
+  elim: E1.
+  - (* Case "E_Skip". *)
+    move=>st0 st2.
+    by case H: _ _ _ /.
+  - (* Case "E_Ass". *)
+    move=>st0 a1 n x <- st2. 
+    case H: _ _ _ /; first 2 [idtac] || by []. 
+    by case: H; move=>*; subst.
+  - (* Case "E_Seq". *)
+    move {st st1}=>c1 c2 st st' st'' H1 H2 H3 H4 st2 H.
+    case H: _ _ st2 /H H1 H2; first 3 [idtac] || by [].
+    case: H=>*.
+    rewrite (H4 _ H3).
     assert (st' = st'0) as EQ1.
       SCase "Proof of assertion". apply IHE1_1; assumption.
     subst st'0.
