@@ -379,7 +379,7 @@ Qed.
     1- [in eq *] pushes [eq] onto the goal, getting
       [ size (v' :: l') = n -> S (size (rcons l' v)) = S n ]
 
-    2-a [case: n] further pushes variable [n] onto the context:
+    2-a [case: n] further pushes variable [n] onto the goal:
       [ forall n, size (v' :: l') = n -> S (size (rcons l' v)) = S n ]
 
     2-b [case: n] after pushing [n] performs a case analysis on the
@@ -449,7 +449,7 @@ Proof.
 Qed.
 
 
-(** (But, as we saw in other examples, we can avoid this simplfication
+(** (But, as we saw in other examples, we can avoid this simplification
     in the hypothesis if we perform the simplification in the goal
     prior to popping it in the context.) *)
 
@@ -495,7 +495,7 @@ Theorem extremely_silly2 : forall n : nat,
 Proof. by []. Qed.
 
 
-(** We define further more notation for the rest of the operators and booleans. *)
+(** We define more notation for the rest of the operators and booleans. *)
 
 Notation "x <= y" := (leq x y)
   (at level 70, no associativity).
@@ -535,7 +535,7 @@ Qed.
     goal matching exactly the hypothesis [H], and therefore we
     conclude by applying [H].
 
-    In a similar way we can proceed on the other direction: take [H]
+    In a similar way we can proceed in the other direction: take [H]
     and "specialize it" to match the goal.  That is, use [S_inj] to
     remove a [S]uccessor from [H], until we have [H] matching our
     goal.  For this we can use the tactic [move].
@@ -591,8 +591,7 @@ Qed.
 
 (** **** Exercise: 3 stars (plus_n_n_injective) *)
 (** Practice using [have], [in], and [move] as we saw in this
-    chapter. *)
-
+    chapter (but don't worry if your solution do not need this tactics). *)
 Theorem plus_n_n_injective : forall n m,
      n + n = m + m ->
      n = m.
@@ -1046,7 +1045,7 @@ Proof.
 (* ################################################################## *)
 (** * Review *)
 
-(** We've now seen a bunch of Coq's fundamental tactics and tacticas.
+(** We've now seen a bunch of Coq's fundamental tactics and tacticals.
     We'll introduce a few more as we go along through the coming
     lectures, and later in the course we'll introduce some more
     powerful _automation_ tactics that make Coq do more of the
@@ -1124,7 +1123,7 @@ Proof.
  *)
 
 (** **** Exercise: 3 stars, optional (eqn_trans) *)
-Theorem eqn : forall n m p,
+Theorem eqn_trans : forall n m p,
   n == m -> m == p -> n == p.
 Proof.
   (* FILL IN HERE *) Admitted.
