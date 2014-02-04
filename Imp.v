@@ -1290,7 +1290,22 @@ Proof.
     In fact, this cannot happen: [ceval] is a partial function.
     Here's the proof: *)
 
-HASTA ACA
+
+Tactic Notation "inv_ceval" constr(c) ident(c') 
+       constr(st1) ident(st1')
+       constr(st2) ident(st2')
+       ident(H)  :=
+  let Hc := fresh "Hc" in
+  let Hst1 := fresh "Hst1" in
+  let Hst2 := fresh "Hst2" in
+  let H := fresh "H" in
+  move Hc: c => c';
+  move Hst1: st1 => st1';
+  move Hst2: st2 => st2';
+  move=>H;
+  case: _ _ _ / H Hc Hst1 Hst2; try by [].
+
+
 
 Theorem ceval_deterministic: forall c st st1 st2,
      c / st || st1  ->
@@ -1298,47 +1313,67 @@ Theorem ceval_deterministic: forall c st st1 st2,
      st1 = st2.
 Proof.
   move=> c st st1 st2 E1 E2.
-  generalize dependent st2.
+  move: st2 E2.
   elim: E1.
   - (* Case "E_Skip". *)
     move=>st0 st2.
-    by case H: _ _ _ /.
+    by inv_ceval SKIP c' st0 st0' st2 st2' H.
   - (* Case "E_Ass". *)
-    move=>st0 a1 n x <- st2. 
-    case H: _ _ _ /; first 2 [idtac] || by []. 
-    by case: H; move=>*; subst.
+    move=> st0 a1 n x E st2 H.
+    move: H E.
+    inv_ceval (x ::= a1) c' st0 st0' st2 st2' H.
+    move=>? ? ? ? ? [] *; subst.
+    by [].
   - (* Case "E_Seq". *)
-    move {st st1}=>c1 c2 st st' st'' H1 H2 H3 H4 st2 H.
-    case H: _ _ st2 /H H1 H2; first 3 [idtac] || by [].
-    case: H=>*.
-    rewrite (H4 _ H3).
-    assert (st' = st'0) as EQ1.
-      SCase "Proof of assertion". apply IHE1_1; assumption.
-    subst st'0.
-    apply IHE1_2. assumption.
-  Case "E_IfTrue".
-    SCase "b1 evaluates to true".
-      apply IHE1. assumption.
-    SCase "b1 evaluates to false (contradiction)".
-      rewrite H in H5. inversion H5.
-  Case "E_IfFalse".
-    SCase "b1 evaluates to true (contradiction)".
-      rewrite H in H5. inversion H5.
-    SCase "b1 evaluates to false".
-      apply IHE1. assumption.
-  Case "E_WhileEnd".
-    SCase "b1 evaluates to false".
-      reflexivity.
-    SCase "b1 evaluates to true (contradiction)".
-      rewrite H in H2. inversion H2.
-  Case "E_WhileLoop".
-    SCase "b1 evaluates to false (contradiction)".
-      rewrite H in H4. inversion H4.
-    SCase "b1 evaluates to true".
-      assert (st' = st'0) as EQ1.
-        SSCase "Proof of assertion". apply IHE1_1; assumption.
-      subst st'0.
-      apply IHE1_2. assumption.  Qed.
+    move=>c1 c2 st0 st' st'' H1 IH1 H2 IH2 st2 H.
+    move: H H1 IH1 H2 IH2.
+    inv_ceval (c1;;c2) c' st0 st0' st2 st2' H.
+    move=>? ? ? st1'' ? ? ? [? ?] ? ? ? IH1 ? IH2.
+    subst.
+    have E1 : st' = st1'' by apply: IH1.
+    subst st1''.
+    by apply: IH2.
+  - (* Case "E_IfTrue". *)
+    move=>st0 st0' b c1 c2 bE Ec1 IH st2 H.
+    apply: IH.
+    move: H bE Ec1.
+    inv_ceval (IFB b THEN c1 ELSE c2 FI) c' st0 st0'' st2 st2'' H.
+    + (* SCase "b1 evaluates to true". *)
+      by move=>? ? ? ? ? ? ? [? ? ?] ? ? ? ?; subst.
+    + (* SCase "b1 evaluates to false (contradiction)". *)
+      move=>? ? ? ? ? E1 ? [? ? ?] ? ? E2 ?. subst.
+      by rewrite E1 in E2.
+  - (* Case "E_IfFalse". *)
+    move=>st0 st0' b c1 c2 bE Ec1 IH st2 H.
+    apply: IH.
+    move: H bE Ec1.
+    inv_ceval (IFB b THEN c1 ELSE c2 FI) c' st0 st0'' st2 st2'' H.
+    + (* SCase "b1 evaluates to true (contradiction)". *)
+      move=>? ? ? ? ? E1 ? [? ? ?] ? ? E2 ?. subst.
+      by rewrite E1 in E2.
+    + (* SCase "b1 evaluates to false". *)
+      by move=>? ? ? ? ? ? ? [? ? ?] ? ? ? ?; subst.
+  - (* Case "E_WhileEnd". *)
+    move=>b st0 c0 Efalse st2 H.
+    move: H Efalse.
+    inv_ceval (WHILE b DO c0 END) c' st0 st0' st2 st2' H.
+    (* SCase "b1 evaluates to true (contradiction)". *)
+    move=>? ? ? ? ? E1 ? ? [? ? ?] ?; subst.
+    by rewrite E1.
+  (* Case "E_WhileLoop". *)
+  move=>st0 st' st'' b c0 Etrue H1 IH1 H2 IH2 st2 H.
+  move: H Etrue.
+  inv_ceval (WHILE b DO c0 END) c' st0 st0' st2 st2' H.
+  - (* SCase "b1 evaluates to false (contradiction)". *)
+    move=>? ? ? Efalse [-> ?] _ _ Etrue.
+    by rewrite Efalse in Etrue.
+  (* SCase "b1 evaluates to true". *)
+  move=>? st'0 ? ? ? ? ? ? [? ?] ? ? ?.
+  subst.
+  have EQ1: st' = st'0 by apply: IH1.
+  subst st'0.
+  by apply: IH2.
+Qed.
 
 (* ####################################################### *)
 (** * Reasoning About Imp Programs *)
@@ -1354,13 +1389,15 @@ Theorem plus2_spec : forall st n st',
   plus2 / st || st' ->
   st' X = n + 2.
 Proof.
-  intros st n st' HX Heval.
+  move=> st1 n st2 HX.
+  inv_ceval plus2 c' st1 st1' st2 st2' H.
+  move=>? ? ? ?. move=><-. move=>[<- <-] <- /= _.
+  by rewrite update_eq HX.
   (* Inverting Heval essentially forces Coq to expand one
      step of the ceval computation - in this case revealing
      that st' must be st extended with the new value of X,
      since plus2 is an assignment *)
-  inversion Heval. subst. clear Heval. simpl.
-  apply update_eq.  Qed.
+Qed.
 
 (** **** Exercise: 3 stars (XtimesYinZ_spec) *)
 (** State and prove a specification of [XtimesYinZ]. *)
@@ -1372,12 +1409,14 @@ Proof.
 Theorem loop_never_stops : forall st st',
   ~(loop / st || st').
 Proof.
-  intros st st' contra. unfold loop in contra.
-  remember (WHILE BTrue DO SKIP END) as loopdef eqn:Heqloopdef.
+  move=> st st'. 
+  rewrite /loop.
+  move Heqloop: (WHILE _ DO _ END) =>loopdef contra.
     (* Proceed by induction on the assumed derivation showing that
-     [loopdef] terminates.  Most of the cases are immediately
-     contradictory (and so can be solved in one step with
-     [inversion]). *)
+     [loopdef] terminates.  You may also consider pushing the equation to 
+     obtain a rewrite of [loopdef] according to the case.
+     Most of the cases are immediately
+     contradictory. *)
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -1460,7 +1499,7 @@ Proof.
 
 Inductive sinstr : Type :=
 | SPush : nat -> sinstr
-| SLoad : id -> sinstr
+| SLoad : ids -> sinstr
 | SPlus : sinstr
 | SMinus : sinstr
 | SMult : sinstr.
@@ -1484,15 +1523,15 @@ Fixpoint s_execute (st : state) (stack : list nat)
 
 
 Example s_execute1 :
-     s_execute empty_state []
-       [SPush 5; SPush 3; SPush 1; SMinus]
-   = [2; 5].
+     s_execute empty_state [::]
+       [:: SPush 5; SPush 3; SPush 1; SMinus]
+   = [:: 2; 5].
 (* FILL IN HERE *) Admitted.
 
 Example s_execute2 :
-     s_execute (update empty_state X 3) [3;4]
-       [SPush 4; SLoad X; SMult; SPlus]
-   = [15; 4].
+     s_execute (update empty_state X 3) [:: 3;4]
+       [:: SPush 4; SLoad X; SMult; SPlus]
+   = [:: 15; 4].
 (* FILL IN HERE *) Admitted.
 
 (** Next, write a function which compiles an [aexp] into a stack
@@ -1508,8 +1547,8 @@ Fixpoint s_compile (e : aexp) : list sinstr :=
 (* 
 Example s_compile1 :
     s_compile (AMinus (AId X) (AMult (ANum 2) (AId Y)))
-  = [SLoad X; SPush 2; SLoad Y; SMult; SMinus].
-Proof. reflexivity. Qed.
+  = [:: SLoad X; SPush 2; SLoad Y; SMult; SMinus].
+Proof. by []. Qed.
 *)
 (** [] *)
 
@@ -1529,7 +1568,7 @@ Proof. reflexivity. Qed.
 
 
 Theorem s_compile_correct : forall (st : state) (e : aexp),
-  s_execute st [] (s_compile e) = [ aeval st e ].
+  s_execute st [::] (s_compile e) = [:: aeval st e ].
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
@@ -1547,15 +1586,10 @@ Module BreakImp.
 Inductive com : Type :=
   | CSkip : com
   | CBreak : com
-  | CAss : id -> aexp -> com
+  | CAss : ids -> aexp -> com
   | CSeq : com -> com -> com
   | CIf : bexp -> com -> com -> com
   | CWhile : bexp -> com -> com.
-
-Tactic Notation "com_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "SKIP" | Case_aux c "BREAK" | Case_aux c "::=" | Case_aux c ";"
-  | Case_aux c "IFB" | Case_aux c "WHILE" ].
 
 Notation "'SKIP'" :=
   CSkip.
@@ -1658,11 +1692,22 @@ Inductive ceval : com -> state -> status -> state -> Prop :=
 
   where "c1 '/' st '||' s '/' st'" := (ceval c1 st s st').
 
-Tactic Notation "ceval_cases" tactic(first) ident(c) :=
-  first;
-  [ Case_aux c "E_Skip"
-  (* FILL IN HERE *)
-  ].
+Tactic Notation "inv_ceval" constr(c) ident(c') 
+       constr(st1) ident(st1')
+       constr(s) ident(s')
+       constr(st2) ident(st2')
+       ident(H)  :=
+  let Hc := fresh "Hc" in
+  let Hst1 := fresh "Hst1" in
+  let Hs := fresh "Hs" in
+  let Hst2 := fresh "Hst2" in
+  let H := fresh "H" in
+  move Hc: c => c';
+  move Hst1: st1 => st1';
+  move Hs: s => s';
+  move Hst2: st2 => st2';
+  move=>H;
+  case: _ _ _ _ / H Hc Hst1 Hs Hst2; try by [].
 
 (** Now the following properties of your definition of [ceval]: *)
 

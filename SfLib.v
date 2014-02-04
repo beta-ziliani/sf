@@ -13,6 +13,7 @@
 Require Import ssreflect.
 
 (* Require Omega.   (* the [omega] tactics do not work with Ssr definisions *) *)
+Require Export ssrfun.
 Require Export ssrbool.
 Require Export seq.
 Require Export ssrnat.
