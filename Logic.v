@@ -612,6 +612,12 @@ Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
+(** **** Exercise: 2 stars, optional (leq_false) *)
+Theorem leq_false : forall n m,
+  leq n m = false -> ~(n <= m).
+Proof.
+  (* FILL IN HERE *) Admitted.
+(** [] *)
 
 
 
@@ -677,7 +683,7 @@ Qed.
 
 (** Conversely, if we have an existential hypothesis in the
     context, we can eliminate it with [case].  Note the use
-    of the [=>...] pattern to name the variable that Coq
+    of the [=>...] tactical to name the variable that Coq
     introduces to name the witness value and get evidence that
     the hypothesis holds for the witness. *)
   
@@ -685,11 +691,28 @@ Theorem exists_example_2 : forall n,
   (exists m, n = 4 + m) ->
   (exists o, n = 2 + o).
 Proof.
-  move=>n.
-  case=> [m Hm]. 
+  move=> n.
+  case=>m Hm.
   exists (2 + m).  
   by apply: Hm.  
 Qed. 
+
+(** Since it is very common to perform a case after popping some
+    variables in the context, Ssreflect allow us to use a pattern
+    between brackets to perform the case of the top hypothesis.  For
+    instance, the previous example can be done as follows: *)
+
+Theorem exists_example_2' : forall n,
+  (exists m, n = 4 + m) ->
+  (exists o, n = 2 + o).
+Proof.
+  move=> n [m Hm].
+  exists (2 + m).  
+  by apply: Hm.  
+Qed. 
+
+(** From now on, when it is clear, we will do the case within the [=>]
+    tactical. *)
 
 (** **** Exercise: 1 star, optional (english_exists) *)
 (** In English, what does the proposition 
@@ -789,8 +812,8 @@ Proof.
   by apply: refl_equal. 
 Qed.
 
-(** The [by []] tactic that we have used to prove equalities up
-to now essentially used [apply: refl_equal]. *)
+(** The [by] tactical that we have used to prove equalities up to now
+    tries [apply: refl_equal]. *)
 
 End MyEquality.
 
@@ -823,7 +846,7 @@ Inductive all (X : Type) (P : X -> Prop) : list X -> Prop :=
 Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
   match l with
     | [::] => true
-    | x :: l' => andb (test x) (forallb test l')
+    | x :: l' => test x && (forallb test l')
   end.
 
 (** Using the property [all], write down a specification for [forallb],
