@@ -31,16 +31,51 @@ Require Import ssreflect.
 (** *** Sflib *)
 
 (** A minor technical point: Instead of asking Coq to import our
-    earlier definitions from chapter [Logic], we import a small library
-    called [Sflib.v], containing just a few definitions and theorems
-    from earlier chapters that we'll actually use in the rest of the
-    course.  This change should be nearly invisible, since most of what's
-    missing from Sflib has identical definitions in the Coq standard
-    library.  The main reason for doing it is to tidy the global Coq
-    environment so that, for example, it is easier to search for
-    relevant theorems. *)
+    earlier definitions from chapter [Logic], we import a small
+    library called [Sflib.v], containing just a few definitions and
+    theorems from earlier chapters that we'll actually use in the rest
+    of the course.  This change should be nearly invisible, since most
+    of what's missing from Sflib has identical definitions in the Coq
+    + Ssreflect standard library.  The main reason for doing it is to
+    tidy the global Coq environment so that, for example, it is easier
+    to search for relevant theorems. *)
 
 Require Export SfLib.
+
+(** There is a difference that is worth pointing out.  In our previous
+    files we've favored the computational definitions over the
+    propositional ones so, for instance, [1 + 1] reduces to [2].  In
+    Ssreflect this is certanly the case, although it doesn't quite
+    work that way when one uses the simplification mechanism [/=].  *)
+
+Example one_one : 1 + 1 = 2.
+Proof.
+  rewrite /=. (* Nothing happened! *)
+  by []. (* (but it's still trivial) *)
+Qed.
+
+(** It sounds strange to have a computational interpretation that
+    actually does not compute with [/=].  But, as with every other
+    aspect of Ssreflect, there is a good reason: sometimes simplifying
+    a term might hide a potential use of a lemma.  What we can do is
+    explicitly say that we want to reduce the plus, by unfolding its
+    definition. *)
+
+Example one_one' : 1 + 1 = 2.
+Proof.
+  rewrite /addn /=. (* Now it works! *)
+  by [].
+Qed.
+
+(** For the sake of simplicity, SfLib includes a tactic [simpl_nat]
+    that performs every possible [nat] simplification in a goal. *)
+Example one_one_gt_one : 1 + 1 > 1.
+Proof.
+  simpl_nat.
+  by [].
+Qed.
+
+
 
 (* ####################################################### *)
 (** * Arithmetic and Boolean Expressions *)
@@ -320,8 +355,8 @@ Lemma foo : forall n, 0 < n + 1.
 Proof.
   case => [|n].
     (* Leaves two subgoals, which are discharged identically...  *)
-  - simpl_nat. by [].
-  simpl_nat. by [].
+  - by [].
+  by [].
 Qed.
 
 (** We can simplify this proof using the [;] tactical: *)
@@ -329,8 +364,7 @@ Qed.
 Lemma foo' : forall n, 0 < n + 1.
 Proof.
   case => [|n]; (* [case] the current goal *)
-  simpl_nat; (* then [simpl_nat] each resulting subgoal *)
-  by []. (* and conclude on each resulting subgoal *)
+    by [].      (* and conclude on each resulting subgoal *)
 Qed.
 
 (** (Actually, in this example, the [;] is not really need .) *)
@@ -666,12 +700,12 @@ Proof.
 Qed.
 
 
-(** Note: if you're reading the HTML file, you'll see an empty square box instead
-of a proof for this theorem.  
-You can click on this box to "unfold" the text to see the proof.
-Click on the unfolded to text to "fold" it back up to a box. We'll be using
-this style frequently from now on to help keep the HTML easier to read.
-The full proofs always appear in the .v files. *)
+(** Note: if you're reading the HTML file, you'll see an empty square
+    box instead of a proof for this theorem.  You can click on this
+    box to "unfold" the text to see the proof.  Click on the unfolded
+    to text to "fold" it back up to a box. We'll be using this style
+    frequently from now on to help keep the HTML easier to read.  The
+    full proofs always appear in the .v files. *)
 
 (** We can make the proof quite a bit shorter by making use of the
     [constructor] tactic.  This tactic tries to apply each of the
@@ -710,13 +744,14 @@ End AExp.
 
 (** For the definitions of evaluation for arithmetic and boolean
     expressions, the choice of whether to use functional or relational
-    definitions is mainly a matter of taste.  In general, plain Coq has
-    somewhat better support for working with relations.  On the other
-    hand, in some sense function definitions carry more information,
-    because functions are necessarily deterministic and defined on all
-    arguments; for a relation we have to show these properties
-    explicitly if we need them. Functions also take advantage of Coq's
-    computations mechanism, and are better supported by Ssreflect.
+    definitions is mainly a matter of taste.  In general, plain Coq
+    has somewhat better support for working with relations.  On the
+    other hand, in some sense function definitions carry more
+    information, because functions are necessarily deterministic and
+    defined on all arguments; for a relation we have to show these
+    properties explicitly if we need them.  Functions also take
+    advantage of Coq's computations mechanism, and are better
+    supported by Ssreflect.
 
     However, there are circumstances where relational definitions of
     evaluation are preferable to functional ones.  *)
@@ -754,6 +789,7 @@ where "a '||' n" := (aevalR a n) : type_scope.
 
 End aevalR_division.
 
+REVISED TILL HERE
 
 (** * Expressions With Variables *)
 
@@ -1272,6 +1308,8 @@ Theorem pup_to_2_ceval :
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
+
+
 
 
 (* ####################################################### *)
