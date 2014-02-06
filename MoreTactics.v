@@ -96,20 +96,23 @@ Proof.
    "ev 5". *)
 Abort.
 
-
-(** Basically, [case] is requiring some help.  We need to provide an
-    interpretention for the parameter(s) of the inductive type.  This
-    is done via the [/] notation.  To the left of the [/] we say what
-    we expect this parameter to be equal to.  To the right, as usual,
-    we have the element we are casing on. *)
+(** We can do an easy trick: assume [n] such that [n = 5], and let
+    [case] act on [n] instead of [5]. This is easily done with
+    Ssreflect's equation generation technique: [ move eq5: 5 => n. ]
+    It adds [n : nat] and [eq5 : 5 = n] to the context.  Then, doing
+    [case: H eq5] (where [H : ev n]) will perform the substitution of
+    [n] by [0] and [S (S n')] in [eq5].  And this will allow us to
+    solve the problem.  *)
 
 Theorem even5_nonsense : 
   ev 5 -> 2 + 2 = 9.
 Proof.
+  (* We want [n] to be equal to [5]. *)
+  move eq5: 5 => n.
   move=>H.
-  (* In this case, we want [n] to be equal to [5]. *)
-  case P: 5 / H =>[|n En].
+  case: {n} H eq5. (* (we do not require n anymore, so we remove it) *)
   - by []. (* The first case is trivial as before. *)
+  move=>n En P.
   (* notice the context, now it has the extra knowledge [P] that [S (S
   n)] is equal to [5].  If we [case] on [P] we get the hypothesis that
   [3 = n].  We use this hypothesis to rewrite [n] to [3] in [En].  *)
@@ -117,18 +120,24 @@ Proof.
   (* We can repeat the process.  I'm using [{n}] to clear [n] from the
   context, so I can use the name again.  Note that I don't need to
   move the hiopthesis to the context. *) 
-  case P : 3 / {n} =>[|n En].
-  - by [].  (* We have an absurd in the context: [3 = 0]. *) 
+  move eq3: 3 => {n} n.
+  move=>H.
+  case: {n} H eq3.
+  - by [].  (* We have an absurd in the hypotheses: [3 = 0]. *) 
+  move=>n En P. 
   case: P En=><-.
   (* Now we have [ev 1].  We repeat the process and now we get two
-  absurds easy to knock out [by []].  It is strange, but we can even
-  omit giving the argument ([1] in this case), and simple write an
-  underscore.  So [case] is asking for help but not really needing
-  it... *)
-  case P : _ / {n} =>[|n En].
-  - by [].
-  by []. (* Another absurd in the hypothesis. *)
+  absurds easy to knock out [by []]. *)
+  move eq1: 1 => {n} n.
+  move=>H.
+  by case: H eq1.
 Qed.
+
+
+(** Since we are always performing the same steps, it would be nice if
+    we can create a tactic to perform this.  We will see how to do
+    this in the next chapter. *)
+
 
 
 (** **** Exercise: 1 star (inversion_practice) *)
@@ -165,11 +174,13 @@ Example test_nostutter_4:      ~ (nostutter [:: 3;1;1;4]).
     is even, then 2+2 = 9".  As a matter of fact, Coq includes a
     tactic called [inversion] that performs this kind of analysis,
     without requiring hints from the user.  The problem with this
-    tactic is that it is obscure, slow, and it generates extremely
-    large proof terms.
+    tactic is that it is obscure, slow, it generates extremely
+    large proof terms, and it pollutes the context with awful names.
 
     In the next section we will see an alternative to inversion.
 *)
+
+
 
 (** ** Proof by computation and the [move/] tactic *)
 (**
@@ -186,8 +197,8 @@ Theorem even5_nonsense_simple :
   ev 5 -> 2 + 2 = 9.
 Proof.
   move=>H.
-  move: (ev__evenb _ H).  (* we get [evenb 5] as hypothesis, which reduces to [false] *)
-  by [].                  (* therefore, we have an absurd in our hypothesis, we conclude *)
+  have := (ev__evenb _ H). (* we get [evenb 5] as hypothesis, which reduces to [false] *)
+  by [].                   (* therefore, we have an absurd in our hypothesis, we conclude *)
 Qed.
 
 (** Here is another example, where we also use [evenb__ev]. *)
@@ -195,7 +206,7 @@ Theorem SSev__even : forall n,
   ev (S (S n)) -> ev n.
 Proof.
   move=>n H.
-  move: {H} (ev__evenb _ H). (* we get [evenb (S (S n))]. 
+  have {H} := (ev__evenb _ H). (* we get [evenb (S (S n))]. 
                                 ({H} erases the hypothesis H.) *)
   rewrite /=.                (* [evenb (S (S n))] reduces to [evenb n] *)
   move=> H. 

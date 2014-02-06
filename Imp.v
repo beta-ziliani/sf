@@ -1341,7 +1341,7 @@ Tactic Notation "inv_ceval" constr(c) ident(c')
   move Hst1: st1 => st1';
   move Hst2: st2 => st2';
   move=>H;
-  case: _ _ _ / H Hc Hst1 Hst2; try by [].
+  case: H Hc Hst1 Hst2; try by [].
 
 
 
