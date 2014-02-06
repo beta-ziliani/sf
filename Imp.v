@@ -1349,7 +1349,8 @@ Tactic Notation "inv_ceval" constr(c) constr(st1) constr(st2) :=
   case: {c' st1' st2'}  H Hc Hst1 Hst2; try by [].
 
 (** Since [inv_ceval] will generate a lot of equations, we are going
-    to use the tactic [subst] that performs all substitutions. *)
+    to use the tactic [subst] to performs every substitution in the
+    goal. *)
 
 Theorem ceval_deterministic: forall c st st1 st2,
      c / st || st1  ->
