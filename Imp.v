@@ -789,7 +789,7 @@ where "a '||' n" := (aevalR a n) : type_scope.
 
 End aevalR_division.
 
-REVISED TILL HERE
+
 
 (** * Expressions With Variables *)
 
@@ -817,11 +817,11 @@ Module Id.
     define its decidable equality (based on [nat]s decidable
     equality). *)
 
-Inductive id : Type :=
-  Id : nat -> id.
+Inductive ids : Type :=
+  Id : nat -> ids.
 
-(** Two [id]s are equal if their [nat]s are equal. *)
-Definition eq_id := fun id1 id2 : id =>
+(** Two [ids]s are equal if their [nat]s are equal. *)
+Definition eq_id := fun id1 id2 : ids =>
                          match id1, id2 with
                          | Id n1, Id n2 => n1 == n2
                          end.
@@ -845,9 +845,9 @@ Qed.
     simply adding an instance of the overloading mechanism.  For the
     moment, the details are not important. *)
 Canonical id_eqMixin := EqMixin eq_idP.
-Canonical id_eqType := Eval hnf in EqType id id_eqMixin.
+Canonical id_eqType := Eval hnf in EqType ids id_eqMixin.
 
-Example silly_id : forall i1 i2 : id, (i1 == i1) && (i1 == i2 == (i2 == i1)).
+Example silly_id : forall i1 i2 : ids, (i1 == i1) && (i1 == i2 == (i2 == i1)).
 Proof. 
   move=>i1 i2.
   rewrite eq_refl.  (* we use the lemma for reflexivty of [_ == _] *)
@@ -857,7 +857,7 @@ Proof.
 Qed.
 
 (** **** Exercise: 1 star, optional (neq_id) *)
-Lemma neq_id : forall (T:Type) (x y : id) (p q:T), x != y -> 
+Lemma neq_id : forall (T:Type) (x y : ids) (p q:T), x != y -> 
                (if x == y then p else q) = q. 
 Proof.
   (* TIP: remember that one can do [case] on any object, not only a variable *) 
@@ -866,6 +866,7 @@ Proof.
 
 
 End Id. 
+
 
 (* ####################################################### *)
 (** ** States *)
@@ -1325,14 +1326,18 @@ Proof.
     evaluate some command [c] in different ways to reach two different
     output states [st'] and [st'']?
 
-    In fact, this cannot happen: [ceval] is a partial function.
-    Here's the proof: *)
+    In fact, this cannot happen: [ceval] is a partial function.  We
+    prove it by repetively performing inversion.  To avoid repetition
+    we build a tactic notation [inv_ceval] that takes three terms, one
+    for each argument of [ceval].  After making an equation for each
+    of them, it performs the [case] on the first hypothesis in the
+    goal.  It also tries to eliminate all the absurd cases. *)
 
 
-Tactic Notation "inv_ceval" constr(c) ident(c') 
-       constr(st1) ident(st1')
-       constr(st2) ident(st2')
-       ident(H)  :=
+Tactic Notation "inv_ceval" constr(c) constr(st1) constr(st2) :=
+  let c' := fresh "c" in
+  let st1' := fresh "st1" in
+  let st2' := fresh "st2" in
   let Hc := fresh "Hc" in
   let Hst1 := fresh "Hst1" in
   let Hst2 := fresh "Hst2" in
@@ -1341,9 +1346,10 @@ Tactic Notation "inv_ceval" constr(c) ident(c')
   move Hst1: st1 => st1';
   move Hst2: st2 => st2';
   move=>H;
-  case: H Hc Hst1 Hst2; try by [].
+  case: {c' st1' st2'}  H Hc Hst1 Hst2; try by [].
 
-
+(** Since [inv_ceval] will generate a lot of equations, we are going
+    to use the tactic [subst] that performs all substitutions. *)
 
 Theorem ceval_deterministic: forall c st st1 st2,
      c / st || st1  ->
@@ -1355,27 +1361,30 @@ Proof.
   elim: E1.
   - (* Case "E_Skip". *)
     move=>st0 st2.
-    by inv_ceval SKIP c' st0 st0' st2 st2' H.
+    by inv_ceval SKIP st0 st2.
   - (* Case "E_Ass". *)
     move=> st0 a1 n x E st2 H.
     move: H E.
-    inv_ceval (x ::= a1) c' st0 st0' st2 st2' H.
-    move=>? ? ? ? ? [] *; subst.
+    inv_ceval (x ::= a1) st0 st2.
+    move=>? ? ? ? ? [] *. (* each [?] is a name we don't care about. 
+                             [*] puts all hypotheses in the context. 
+                             We cannot use the names marked as [_n_]. *)
+    subst.  (* all the equations were applied to the goal *)
     by [].
   - (* Case "E_Seq". *)
     move=>c1 c2 st0 st' st'' H1 IH1 H2 IH2 st2 H.
     move: H H1 IH1 H2 IH2.
-    inv_ceval (c1;;c2) c' st0 st0' st2 st2' H.
+    inv_ceval (c1;;c2) st0 st2.
     move=>? ? ? st1'' ? ? ? [? ?] ? ? ? IH1 ? IH2.
     subst.
     have E1 : st' = st1'' by apply: IH1.
-    subst st1''.
+    subst st1''. (* substitutes and remove [st1''] *)
     by apply: IH2.
   - (* Case "E_IfTrue". *)
     move=>st0 st0' b c1 c2 bE Ec1 IH st2 H.
     apply: IH.
     move: H bE Ec1.
-    inv_ceval (IFB b THEN c1 ELSE c2 FI) c' st0 st0'' st2 st2'' H.
+    inv_ceval (IFB b THEN c1 ELSE c2 FI) st0 st2.
     + (* SCase "b1 evaluates to true". *)
       by move=>? ? ? ? ? ? ? [? ? ?] ? ? ? ?; subst.
     + (* SCase "b1 evaluates to false (contradiction)". *)
@@ -1385,7 +1394,7 @@ Proof.
     move=>st0 st0' b c1 c2 bE Ec1 IH st2 H.
     apply: IH.
     move: H bE Ec1.
-    inv_ceval (IFB b THEN c1 ELSE c2 FI) c' st0 st0'' st2 st2'' H.
+    inv_ceval (IFB b THEN c1 ELSE c2 FI) st0 st2.
     + (* SCase "b1 evaluates to true (contradiction)". *)
       move=>? ? ? ? ? E1 ? [? ? ?] ? ? E2 ?. subst.
       by rewrite E1 in E2.
@@ -1394,14 +1403,14 @@ Proof.
   - (* Case "E_WhileEnd". *)
     move=>b st0 c0 Efalse st2 H.
     move: H Efalse.
-    inv_ceval (WHILE b DO c0 END) c' st0 st0' st2 st2' H.
+    inv_ceval (WHILE b DO c0 END) st0 st2.
     (* SCase "b1 evaluates to true (contradiction)". *)
     move=>? ? ? ? ? E1 ? ? [? ? ?] ?; subst.
     by rewrite E1.
   (* Case "E_WhileLoop". *)
   move=>st0 st' st'' b c0 Etrue H1 IH1 H2 IH2 st2 H.
   move: H Etrue.
-  inv_ceval (WHILE b DO c0 END) c' st0 st0' st2 st2' H.
+  inv_ceval (WHILE b DO c0 END) st0 st2.
   - (* SCase "b1 evaluates to false (contradiction)". *)
     move=>? ? ? Efalse [-> ?] _ _ Etrue.
     by rewrite Efalse in Etrue.
@@ -1428,7 +1437,7 @@ Theorem plus2_spec : forall st n st',
   st' X = n + 2.
 Proof.
   move=> st1 n st2 HX.
-  inv_ceval plus2 c' st1 st1' st2 st2' H.
+  inv_ceval plus2 st1 st2.
   move=>? ? ? ?. move=><-. move=>[<- <-] <- /= _.
   by rewrite update_eq HX.
   (* Inverting Heval essentially forces Coq to expand one
@@ -1480,8 +1489,8 @@ Inductive no_whilesR: com -> Prop :=
  (* FILL IN HERE *)
   .
 
-Theorem no_whiles_eqv:
-   forall c, no_whiles c = true <-> no_whilesR c.
+Theorem no_whilesP:
+   forall c, reflect (no_whilesR c) (no_whiles c).
 Proof.
   (* FILL IN HERE *) Admitted.
 (** [] *)
@@ -1730,22 +1739,9 @@ Inductive ceval : com -> state -> status -> state -> Prop :=
 
   where "c1 '/' st '||' s '/' st'" := (ceval c1 st s st').
 
-Tactic Notation "inv_ceval" constr(c) ident(c') 
-       constr(st1) ident(st1')
-       constr(s) ident(s')
-       constr(st2) ident(st2')
-       ident(H)  :=
-  let Hc := fresh "Hc" in
-  let Hst1 := fresh "Hst1" in
-  let Hs := fresh "Hs" in
-  let Hst2 := fresh "Hst2" in
-  let H := fresh "H" in
-  move Hc: c => c';
-  move Hst1: st1 => st1';
-  move Hs: s => s';
-  move Hst2: st2 => st2';
-  move=>H;
-  case: _ _ _ _ / H Hc Hst1 Hs Hst2; try by [].
+Tactic Notation "inv_ceval" constr(c) constr(st1) constr(s) constr(st2) :=
+  (* COMPLETE *)
+  case.
 
 (** Now the following properties of your definition of [ceval]: *)
 
